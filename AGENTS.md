@@ -22,7 +22,7 @@ repository as `../my`.
 - **Never weaken a check to make a change pass.** Change the code.
 - **Build only what was asked.** No document, ADR, screen, setting, or option because it might be useful.
 - **Never copy code, translations, or UI strings from `../my`.** The server is AGPL-3.0 and this repository is
-  Apache-2.0; only the API specification is MIT ([ADR-0001](docs/adr/0001-license.md) §3).
+  Apache-2.0; only the parts that my ADR-0093 §2 licenses as MIT may be reused, and today that is the API specification ([ADR-0001](docs/adr/0001-license.md) §3).
 - **A gap in the server goes to `mycroblog/my` as an issue**, not around it in the client.
 - **A feature lands on iOS and Android in the same pull request, but the screens do not look alike**: features,
   behavior, and content match; layout, components, and interaction follow the Human Interface Guidelines and

@@ -8,7 +8,7 @@
 
 ### 1. サーバーの決定に従う
 
-OAuth の扱いは、サーバーの決定 (my ADR-0090 §3) に従う。
+OAuth の扱いは、サーバーの決定 (my ADR-0090 §3) に従う。my ADR-0090 §3 の公式のモバイルアプリの記述には、まだ Tauri の前提が残っている。ネイティブのアプリに合わせる書き直しは my#3569 で扱い、それまでは、この ADR の §2 を端末の側の決定とする。
 
 - 公式のモバイルアプリは CIMD のクライアントで、`client_id` はプロジェクトのサイトに置いた URL である。
 - redirect URI には claimed `https` (Universal Links と App Links) を使い、PKCE を付ける。
