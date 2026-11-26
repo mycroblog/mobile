@@ -1,0 +1,17 @@
+{
+  "config": {
+    "default": true,
+    // Japanese prose and wide tables make line-length limits impractical.
+    "MD013": false,
+    // ADRs use repeated headings such as "Context" across files; allow duplicates among siblings only.
+    "MD024": { "siblings_only": true },
+    // Template placeholders and HTML comments are intentional.
+    "MD033": false,
+    "MD041": false,
+    "MD060": false
+  },
+  "globs": ["**/*.md"],
+  // Skip generated, git-ignored output such as the documents the documentation site copies in.
+  "gitignore": true,
+  "ignores": ["node_modules/**", "**/node_modules/**"]
+}
