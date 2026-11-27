@@ -13,6 +13,8 @@ const TEXT_SIZES = {
 };
 const RTL_ARGS = ['-AppleTextDirection', 'YES', '-NSForceRightToLeftWritingDirection', 'YES'];
 const HINGE = { fold: 0, 'half-open': 120, unfold: 180 };
+// How long a session may go unused before its device seat may be taken over (ADR-0012 §2).
+const SEAT_IDLE = 900;
 
 function context(deps) {
   const runner = runnerOf(deps, 'ios');
@@ -74,34 +76,66 @@ const steps = {
     if (old?.runnerPid && deps.alive(old.runnerPid)) {
       throw new StepError(`an ios session is running on ${old.kind}: run "scripts/drive ios stop" first`);
     }
-    const udid = ctx.device(kind);
-    try {
-      ctx.simctl('boot', udid);
-    } catch {
-      // already booted
-    }
-    ctx.simctl('bootstatus', udid, '-b');
+    // The runner is built first, under the compile seat, and the simulator booted after, under the device seat, so
+    // the booted simulator never waits for a compile and no one waits for the device holding the compile seat
+    // (ADR-0012 §2).
     const project = path.join(deps.root, 'tools/drive/ios/DriveRunner.xcodeproj');
     const derived = path.join(deps.stateDir, 'ios-build');
-    deps.sh('xcodebuild', ['build-for-testing', '-project', project, '-scheme', 'DriveRunner',
-      '-destination', 'generic/platform=iOS Simulator', '-derivedDataPath', derived, '-quiet']);
+    deps.slot(['take', 'compile', String(deps.pid), 'scripts/drive ios: building the runner']);
+    try {
+      deps.sh('xcodebuild', ['build-for-testing', '-project', project, '-scheme', 'DriveRunner',
+        '-destination', 'generic/platform=iOS Simulator', '-derivedDataPath', derived, '-quiet']);
+    } finally {
+      deps.slot(['release', 'compile', String(deps.pid)]);
+    }
     const products = path.join(derived, 'Build/Products');
     const xctestrun = deps.sh('find', [products, '-name', '*.xctestrun', '-maxdepth', '1']).trim().split('\n')[0];
     if (!xctestrun) throw new StepError(`the runner built, but no .xctestrun is in ${products}`);
-    const startRunner = () => deps.spawnDetached('xcodebuild', ['test-without-building', '-xctestrun', xctestrun,
-      '-destination', `id=${udid}`, '-only-testing:DriveRunner/RunnerTests/testServe'], {
-      log: path.join(deps.stateDir, 'ios-runner.log'),
-      env: { TEST_RUNNER_DRIVE_PORT: String(ctx.port) },
-    });
-    let runnerPid = startRunner();
-    deps.writeState('ios', { kind, device: udid, port: ctx.port, runnerPid, app: null });
+    let holder = deps.pid;
+    deps.slot(['take', 'device', String(holder), `scripts/drive ios on ${kind}`]);
+    let udid = null;
+    let runnerPid = null;
     try {
-      await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
-    } catch {
-      // A runner started on a freshly booted simulator sometimes crashes while preparing; a second start works.
-      runnerPid = startRunner();
-      deps.writeState('ios', { kind, device: udid, port: ctx.port, runnerPid, app: null });
-      await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+      udid = ctx.device(kind);
+      // Unused for SEAT_IDLE seconds, the session's seat may be taken over and its simulator shut down.
+      deps.slot(['set', 'device', String(holder), `device=ios:${udid}`, `idle=${SEAT_IDLE}`]);
+      try {
+        ctx.simctl('boot', udid);
+      } catch {
+        // already booted
+      }
+      ctx.simctl('bootstatus', udid, '-b');
+      const startRunner = () => {
+        runnerPid = deps.spawnDetached('xcodebuild', ['test-without-building', '-xctestrun', xctestrun,
+          '-destination', `id=${udid}`, '-only-testing:DriveRunner/RunnerTests/testServe'], {
+          log: path.join(deps.stateDir, 'ios-runner.log'),
+          env: { TEST_RUNNER_DRIVE_PORT: String(ctx.port) },
+        });
+        // The runner, which lives as long as the session, holds the seat from here.
+        deps.slot(['set', 'device', String(holder), `pid=${runnerPid}`]);
+        holder = runnerPid;
+        deps.writeState('ios', { kind, device: udid, port: ctx.port, runnerPid, app: null });
+      };
+      startRunner();
+      try {
+        await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+      } catch {
+        // A runner started on a freshly booted simulator sometimes crashes while preparing; a second start works.
+        startRunner();
+        await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+      }
+    } catch (e) {
+      if (runnerPid) deps.kill(runnerPid);
+      if (udid) {
+        try {
+          ctx.simctl('shutdown', udid);
+        } catch {
+          // already shut down
+        }
+      }
+      deps.writeState('ios', null);
+      deps.slot(['release', 'device', String(holder)]);
+      throw e;
     }
     return ctx.runner.call('look');
   },
@@ -122,6 +156,7 @@ const steps = {
       // already shut down
     }
     deps.writeState('ios', null);
+    deps.slot(['release', 'device', String(state.runnerPid)]);
     return { message: `stopped; the simulator drive-${state.kind} is kept for the next start` };
   },
 

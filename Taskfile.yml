@@ -1,5 +1,5 @@
-# The single entry point of every check (ADR-0006 §3): an agent, a contributor and CI run `task check`, which
-# `scripts/kit check` also runs. Each area keeps its tasks in tasks/<area>.yml under its own namespace and has a
+# The single entry point of every check (ADR-0006 §3): `task check` runs every area, CI runs the tasks of each area,
+# and `scripts/kit check` runs those of the areas a branch reaches (ADR-0012 §3). Each area keeps its tasks in tasks/<area>.yml under its own namespace and has a
 # `<area>:check`; a new area is one file there, one line under `includes`, and one line under `check`.
 version: "3"
 
@@ -16,7 +16,7 @@ includes:
 
 tasks:
   check:
-    desc: Run every check, each area in parallel, and report every area that fails; then launch and test each app on its devices, one after another
+    desc: Run every check of every area in parallel, and report every area that fails; then run the iOS tests on one simulator
     failfast: false
     deps:
       - toolchain:check
@@ -26,11 +26,21 @@ tasks:
       - ios:check
       - android:check
       - android:test
-    # The launches and the tests on devices run one after another, after every area has passed: only one simulator or
-    # emulator runs at a time.
+    # The tests on a simulator run after every area has passed: one device at a time (ADR-0012 §2).
+    cmds:
+      - task: ios:test
+
+  check:areas:
+    desc: Run the checks named in TASKS (space-separated) in parallel, and report every one that fails; scripts/kit check names them
+    failfast: false
+    deps:
+      - for: { var: TASKS }
+        task: "{{.ITEM}}"
+
+  check:devices:
+    desc: Launch each app on every device kind, one device at a time; CI runs it, so not part of task check (ADR-0012 §3)
     cmds:
       - task: ios:launch
-      - task: ios:test
       - task: android:launch
 
   check:flow:

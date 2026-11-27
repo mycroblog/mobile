@@ -37,7 +37,7 @@ public final class ServerLookupModel: Identifiable {
     /// Counts the changes that make a lookup in flight stale, so that its answer is dropped.
     @ObservationIgnored private var generation = 0
 
-    /// A screen with `address` typed and showing `state`; a screenshot test passes the state to render.
+    /// A screen with `address` typed and showing `state`.
     public init(lookup: any InstanceLookup, address: String = "", state: State = .idle) {
         self.lookup = lookup
         self.address = address
