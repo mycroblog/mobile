@@ -119,6 +119,29 @@ test('a push the app may not show yet says how to allow it', async () => {
   assert.match(f.err, /^drive: dev\.demo may not show notifications yet: let it ask, tap Allow, then notify again\nOn the screen instead:/);
 });
 
+test('a stale idb companion is restarted once', async () => {
+  let failed = false;
+  const sh = (cmd, args) => {
+    if (cmd === 'idb' && args[0] === 'hinge' && !failed) {
+      failed = true;
+      throw Object.assign(new Error('failed'), { stderr: 'The dtuhidd connection has been invalidated' });
+    }
+    return '';
+  };
+  const f = await run(['ios', 'unfold'], { state: IOS_DUO, sh: (c, a) => (a.length === 3 ? '180.0\n' : sh(c, a)) });
+  assert.equal(f.code, 0, f.err);
+  assert.deepEqual(f.calls.sh, ['idb hinge 180 --udid UDID', 'idb kill', 'idb hinge 180 --udid UDID', 'idb hinge --udid UDID', 'sleep 1.5']);
+});
+
+test('a hinge that does not move is set again, then refused', async () => {
+  const reads = ['0.0', '180.0'];
+  const ok = await run(['ios', 'unfold'], { state: IOS_DUO, sh: (c, a) => (a.length === 3 ? reads.shift() : '') });
+  assert.equal(ok.code, 0, ok.err);
+  assert.equal(ok.calls.sh.filter((c) => c === 'idb hinge 180 --udid UDID').length, 2);
+  const stuck = await run(['ios', 'unfold'], { state: IOS_DUO, sh: (c, a) => (a.length === 3 ? '0.0' : '') });
+  assert.match(stuck.err, /the hinge did not move to 180 degrees/);
+});
+
 test('without a session a step says how to start one', async () => {
   const f = await run(['android', 'look']);
   assert.equal(f.code, 1);
@@ -145,9 +168,9 @@ const IOS_CASES = [
   [['open', 'demo://post/1'], IOS, [], [{ op: 'open', url: 'demo://post/1' }]],
   [['share', 'https://example.com/', '--to', 'Demo'], IOS, [], [{ op: 'share', url: 'https://example.com/', target: 'Demo' }]],
   [['notify', 'Hi', 'there', '--data', 'post=7'], IOS, ['xcrun simctl push UDID dev.demo /state/push.json'], [{ op: 'look' }]],
-  [['fold'], IOS_DUO, ['idb hinge 0 --udid UDID'], [{ op: 'look' }]],
-  [['unfold'], IOS_DUO, ['idb hinge 180 --udid UDID'], [{ op: 'look' }]],
-  [['half-open'], IOS_DUO, ['idb hinge 120 --udid UDID'], [{ op: 'look' }]],
+  [['fold'], IOS_DUO, ['idb hinge 0 --udid UDID', 'idb hinge --udid UDID', 'sleep 1.5'], [{ op: 'look' }]],
+  [['unfold'], IOS_DUO, ['idb hinge 180 --udid UDID', 'idb hinge --udid UDID', 'sleep 1.5'], [{ op: 'look' }]],
+  [['half-open'], IOS_DUO, ['idb hinge 120 --udid UDID', 'idb hinge --udid UDID', 'sleep 1.5'], [{ op: 'look' }]],
   [['rotate', 'landscape-left'], IOS, [], [{ op: 'orientation', value: 'landscape-left' }]],
   [['resize', '600x500'], IOS_IPAD, [], [{ op: 'resize', width: 600, height: 500 }]],
   [['appearance', 'dark'], IOS, ['xcrun simctl ui UDID appearance dark'], [{ op: 'look' }]],
@@ -198,7 +221,13 @@ function expectRequests(sent, expected) {
 
 test('each change on iOS runs its simctl, idb or runner step', async () => {
   for (const [argv, state, commands, requests] of IOS_CASES) {
-    const f = await run(['ios', ...argv], { state, sh: () => LAUNCHCTL });
+    let hinge = '';
+    const sh = (cmd, args) => {
+      if (cmd !== 'idb') return LAUNCHCTL;
+      if (args.length === 4) hinge = args[1];
+      return hinge; // reading the hinge gives the angle last set
+    };
+    const f = await run(['ios', ...argv], { state, sh });
     assert.equal(f.code, 0, `${argv.join(' ')}: ${f.err}`);
     assert.deepEqual(f.calls.sh, commands, argv.join(' '));
     expectRequests(f.calls.send, requests);

@@ -239,14 +239,35 @@ async function hinge(ctx, posture) {
   if (ctx.runner.state().kind !== 'duo') {
     throw new StepError(`${posture} works on the iPhone Duo: run "scripts/drive ios start --device duo"`);
   }
+  const angle = HINGE[posture];
+  const idb = (...args) => ctx.deps.sh('idb', ['hinge', ...args, '--udid', ctx.udid()]);
+  // The first hinge event a new companion sends can be dropped: set the angle until it reads back.
+  const set = () => {
+    for (let i = 0; i < 3; i++) {
+      idb(String(angle));
+      if (Math.abs(Number(idb().trim()) - angle) < 20) return;
+      ctx.deps.sh('sleep', ['0.5']);
+    }
+    throw new StepError(`the hinge did not move to ${angle} degrees: idb hinge --udid ${ctx.udid()} reads where it is`);
+  };
   try {
-    ctx.deps.sh('idb', ['hinge', String(HINGE[posture]), '--udid', ctx.udid()]);
+    try {
+      set();
+    } catch (e) {
+      if (e.code === 'ENOENT' || e instanceof StepError) throw e;
+      // idb keeps a companion per simulator; after the simulator reboots its connection is stale until it restarts.
+      ctx.deps.sh('idb', ['kill']);
+      set();
+    }
   } catch (e) {
+    if (e instanceof StepError) throw e;
     if (e.code === 'ENOENT') {
       throw new StepError('idb is not installed: brew install facebook/fb/idb-companion, then pipx install fb-idb');
     }
     throw new StepError(`idb hinge failed: ${String(e.stderr ?? e.message).trim()}`);
   }
+  // The system moves the app to the other display a moment after the hinge, and the screen before looks settled.
+  ctx.deps.sh('sleep', ['1.5']);
   return ctx.look();
 }
 
