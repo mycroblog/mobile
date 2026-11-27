@@ -749,9 +749,14 @@ boot_android() {
   adb="$ANDROID_SDK/platform-tools/adb"
   if ! "$ANDROID_SDK/emulator/emulator" -list-avds | grep -qx "$avd"; then
     local out
-    out="$(echo no | "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" 2>&1)" || {
+    # avdmanager writes under XDG_CONFIG_HOME when it is set (a CI runner sets it), and the emulator never reads there.
+    out="$(echo no | env -u XDG_CONFIG_HOME "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" 2>&1)" || {
       printf '%s\n' "$out" >&2
       fail "could not create the AVD $avd from $ANDROID_IMAGE (avdmanager says why above): install the image with sdkmanager, or create it in Android Studio's Device Manager as a $profile, then check again."
+    }
+    [[ -f "$ANDROID_AVD_HOME/$avd.ini" ]] || {
+      printf '%s\n' "$out" >&2
+      fail "avdmanager created $avd somewhere other than $ANDROID_AVD_HOME, where the emulator looks: set ANDROID_AVD_HOME to where it went (above), then check again."
     }
   fi
   log="$(mktemp)"
