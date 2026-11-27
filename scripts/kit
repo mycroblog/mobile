@@ -207,9 +207,15 @@ cmd_pr_land() {
     fi
     sleep 30
   done
-  git -C "$ROOT" switch -q main
-  git -C "$ROOT" pull -q --ff-only
-  git -C "$ROOT" branch -q -D "$branch" 2>/dev/null || true
+  if [[ "$(git -C "$ROOT" rev-parse --absolute-git-dir)" != "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" ]]; then
+    # A linked worktree cannot switch to main, which the main checkout holds.
+    git -C "$ROOT" fetch -q origin
+    printf 'remove this worktree: git worktree remove %s && git branch -D %s\n' "$ROOT" "$branch"
+  else
+    git -C "$ROOT" switch -q main
+    git -C "$ROOT" pull -q --ff-only
+    git -C "$ROOT" branch -q -D "$branch" 2>/dev/null || true
+  fi
   printf 'merged #%s; closed: %s\n' "$pr" \
     "$(gh pr view "$pr" --repo "$REPO" --json closingIssuesReferences -q '[.closingIssuesReferences[] | "#\(.number)"] | join(" ")')"
 }
