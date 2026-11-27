@@ -31,13 +31,26 @@
       "Bash(gh pr comment -R mycroblog/*)"
     ],
     "deny": [
+      "Bash(git push --force)",
       "Bash(git push --force *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push -f)",
       "Bash(git push -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push * +*)",
       "Bash(gh repo delete *)",
       "Bash(gh pr merge --admin *)",
       "Bash(gh pr merge * --admin*)",
-      "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.p8)",
+      "Read(**/*.p12)",
+      "Read(**/*.pem)",
+      "Read(**/*.jks)",
+      "Read(**/*.keystore)",
+      "Read(**/*.mobileprovision)"
     ]
   }
 }
