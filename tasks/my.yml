@@ -1,0 +1,16 @@
+# A local my for the integration and UI-flow tests (ADR-0006 §1): my's demo server at the commit of
+# shared/api/my-commit, seeded with its scenario (my ADR-0015 §5, §6). scripts/my.sh says how.
+version: "3"
+
+tasks:
+  up:
+    desc: Start a local my (or reuse the running one) at the commit of shared/api/my-commit and print its URL (MY=<my checkout>, MY_PORT=<port>)
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/my.sh up
+
+  down:
+    desc: Stop the local my that my:up started
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/my.sh down

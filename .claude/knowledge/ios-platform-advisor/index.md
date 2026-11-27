@@ -13,6 +13,7 @@ How iOS, iPadOS and the iPhone Duo behave for this app. Read this file, then the
 | `scene-restoration.md` | SceneStorage and scene session restoration, Tab accessibility |
 | `tabs-launch-plist.md` | TabView and sidebarAdaptable, simctl launch and bootstatus, Info.plist keys |
 | `swift-openapi-generator.md` | swift-openapi-generator, runtime, urlsession: versions, CLI, config, 3.1 limits |
+| `testing-and-tooling.md` | swift-snapshot-testing, xcresulttool attachments, xcodebuild test flags and TEST_RUNNER_, ATS and localhost |
 
 ## Rules for a line
 

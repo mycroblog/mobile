@@ -19,6 +19,7 @@ public struct APIClient: Sendable {
     package init(origin: URL, transport: any ClientTransport, middlewares: [any ClientMiddleware] = []) {
         generated = Client(
             serverURL: Self.baseURL(of: origin),
+            configuration: Configuration(dateTranscoder: RFC3339DateTranscoder()),
             transport: transport,
             middlewares: middlewares
         )

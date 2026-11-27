@@ -1,0 +1,61 @@
+{
+  "domain": "example.social",
+  "name": "Example Social",
+  "version": "v0.1.0",
+  "source_url": "https://github.com/mycroblog/my",
+  "registrations": {
+    "mode": "open"
+  },
+  "login_providers_only": false,
+  "limits": {
+    "articles": {
+      "max_bytes": 100000,
+      "max_images": 20
+    },
+    "drafts": {
+      "max_drafts": 100,
+      "max_scheduled_posts": 300,
+      "max_scheduled_posts_per_day": 25,
+      "scheduled_post_max_lead_days": 366,
+      "scheduled_post_min_lead_minutes": 1
+    },
+    "max_post_characters": 500,
+    "require_media_description": false
+  },
+  "timelines": {
+    "federated": "signed_in",
+    "local": "everyone"
+  },
+  "federation": {
+    "mode": "off"
+  },
+  "sends_email": true,
+  "rules": [],
+  "search_indexing": "deny",
+  "ai_usage": "deny",
+  "link_cards": true,
+  "link_cards_ignore_robots_txt": false,
+  "finance_visibility": "private",
+  "income_visibility": "private",
+  "supporters_enabled": false,
+  "tips_enabled": false,
+  "supporter_list_visibility": "off",
+  "domain_actions_visibility": "off",
+  "voice_enabled": true,
+  "voice_room_starters": "permitted",
+  "event_creators": "everyone",
+  "full_text_search": {
+    "available": false,
+    "visibilities": []
+  },
+  "translation": {
+    "browser": false,
+    "providers": []
+  },
+  "single_user": false,
+  "landing_fediverse_explanation": true,
+  "landing_features": true,
+  "features": [],
+  "short_description": "A place on the fediverse to test the mobile apps with.",
+  "description": "<p>This instance exists only in the tests of the mycroblog mobile apps.</p>"
+}

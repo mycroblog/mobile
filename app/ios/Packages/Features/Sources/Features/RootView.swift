@@ -96,7 +96,7 @@ private struct OverflowList: View {
 }
 
 /// The empty screen of a destination until its feature lands. Its symbol is decorative, so VoiceOver skips it.
-private struct DestinationPlaceholder: View {
+struct DestinationPlaceholder: View {
     let destination: TopLevelDestination
 
     var body: some View {

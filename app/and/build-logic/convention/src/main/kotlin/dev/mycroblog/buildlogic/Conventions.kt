@@ -6,7 +6,11 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 
 internal val Project.libs: VersionCatalog
@@ -22,6 +26,15 @@ internal fun Project.configureModule() {
     group = "dev.mycroblog" + path.substringBeforeLast(':').replace(':', '.')
     extensions.getByType<KotlinBaseExtension>().jvmToolchain(libs.version("jdk").toInt())
     enforceModuleBoundaries()
+    // A failed test prints its name and message even when Gradle runs quietly, as the checks run it; the stack trace
+    // is in the report that Gradle names.
+    tasks.withType<Test>().configureEach {
+        testLogging.quiet {
+            events(TestLogEvent.FAILED)
+            exceptionFormat = TestExceptionFormat.FULL
+            showStackTraces = false
+        }
+    }
 }
 
 /** The namespace of a module's Android code: `:feature:timeline:impl` is dev.mycroblog.feature.timeline.impl. */

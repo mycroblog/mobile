@@ -42,8 +42,27 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
 
+  # The UI-flow tests (ADR-0006 §1): XCUITest drives the app on the simulator (`task ios:test-flow`).
+  MycroblogUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Mycroblog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mycroblog.app.uitests
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "6"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Mycroblog
+
 schemes:
   Mycroblog:
     build:
       targets:
         Mycroblog: all
+    test:
+      targets:
+        - MycroblogUITests

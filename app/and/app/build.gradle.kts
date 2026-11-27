@@ -12,6 +12,8 @@ android {
         applicationId = "dev.mycroblog.app"
         versionCode = 1
         versionName = "0.1.0"
+        // The UI-flow tests (ADR-0006 §1), in src/androidTest, on an emulator (task android:test-flow).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 }
 
@@ -34,4 +36,9 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.serialization.core)
     ksp(libs.androidx.hilt.compiler)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
