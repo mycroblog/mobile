@@ -32,7 +32,8 @@ field() { sed -n "s/^$2=//p" "$1/owner" 2>/dev/null | head -n 1; }
 
 alive() { [[ -n "$1" ]] && kill -0 "$1" 2>/dev/null; }
 
-mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+# GNU stat first: on Linux, `stat -f` reads the file system and succeeds with another number.
+mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
 
 # Whether the seat directory $1 is stale: its holder is dead, or it has not been touched for its idle limit.
 stale() {

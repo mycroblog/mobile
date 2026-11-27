@@ -28,7 +28,7 @@ Usage: scripts/kit <command> [arguments]
                       The branch is <type>/<issue>-<slug>;
                       the body says `Closes #<issue>`, or `Refs #<issue>` with --refs for a change that does not
                       complete the issue. Running it again on a branch that has a pull request pushes and stops.
-  pr land <pr>        Queue the pull request to merge once its checks pass, follow it to the merge, then delete the
+  pr land <pr>        Put the pull request in the merge queue once its checks pass, follow it to the merge, then delete the
                       local branch and report what closed.
   help                Show this help; -h or --help after any command shows it too.
 EOF
@@ -233,7 +233,8 @@ cmd_pr_land() {
   [[ -n "$pr" ]] || die "pr land needs a pull request number: scripts/kit pr land <pr>"
   local branch state
   branch="$(gh pr view "$pr" --repo "$REPO" --json headRefName -q .headRefName)"
-  gh pr merge "$pr" --repo "$REPO" --auto --merge >/dev/null || \
+  # The merge queue of main sets how it merges (ADR-0006 §3): --auto puts the pull request in it once its checks pass.
+  gh pr merge "$pr" --repo "$REPO" --auto >/dev/null || \
     die "#$pr cannot be queued: read gh pr view $pr --repo $REPO, fix what it says, then run this again."
   printf 'queued #%s; following it\n' "$pr"
   gh pr checks "$pr" --repo "$REPO" --watch --fail-fast >/dev/null 2>&1 || true

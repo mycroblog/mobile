@@ -1,0 +1,25 @@
+// Gradle init script of CI (installed by the action of this directory): Maven Central answers 429 to the shared
+// addresses of GitHub's runners, and Google's mirror of Maven Central does not. Every build and included build asks the
+// mirror first, then the repositories its settings declare, for everything but what only Google's Maven repository
+// holds. It is added once the settings are read: a build that declares no plugin repositories gets the Gradle Plugin
+// Portal by default, and a repository added before would take the place of that default.
+def mirrorFirst = { repositories ->
+  def mirror = repositories.maven {
+    name = 'MavenCentralMirror'
+    url = 'https://maven-central.storage-download.googleapis.com/maven2/'
+    content {
+      excludeGroupByRegex 'androidx\\..*'
+      excludeGroupByRegex 'com\\.android(\\..*)?'
+      excludeGroupByRegex 'com\\.google\\.android\\..*'
+    }
+  }
+  repositories.remove(mirror)
+  repositories.addFirst(mirror)
+}
+settingsEvaluated { settings ->
+  def plugins = settings.pluginManagement.repositories
+  if (plugins.isEmpty()) plugins.gradlePluginPortal()
+  mirrorFirst(plugins)
+  def dependencies = settings.dependencyResolutionManagement.repositories
+  if (!dependencies.isEmpty()) mirrorFirst(dependencies)
+}

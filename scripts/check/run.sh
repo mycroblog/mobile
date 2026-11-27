@@ -521,6 +521,8 @@ check_tool_versions() {
   local failed=0 tool pinned want have
   while read -r tool pinned _; do
     [[ -z "$tool" || "$tool" == \#* ]] && continue
+    # XcodeGen builds the iOS project, which exists only on a Mac.
+    [[ "$tool" == xcodegen && "$(uname -s)" != Darwin ]] && continue
     want="$(comparable_version "$tool" "$pinned")"
     have="$(installed_version "$tool" || true)"
     if [[ "$have" == "unknown" ]]; then
@@ -553,10 +555,19 @@ check_xcode_version() {
 
 # The Android app (app/and) and the SDK packages it is built and launched with (CONTRIBUTING.md).
 ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+# Where avdmanager writes the AVDs and the emulator reads them: newer tools follow XDG_CONFIG_HOME, the emulator does not.
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
 ANDROID_APP="$ROOT/app/and"
 ANDROID_PACKAGE="dev.mycroblog.app"
 ANDROID_SDK_PACKAGES=("platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "cmdline-tools;latest")
-ANDROID_IMAGE="system-images;android-37.0;google_apis_playstore;arm64-v8a"
+# The emulator image of this machine's architecture: arm64 on Apple silicon, x86_64 on a Linux CI runner.
+case "$(uname -m)" in
+  arm64 | aarch64) ANDROID_ABI="arm64-v8a" ;;
+  *) ANDROID_ABI="x86_64" ;;
+esac
+ANDROID_IMAGE="system-images;android-37.0;google_apis_playstore;$ANDROID_ABI"
+# The emulator's renderer: the Mac's GPU, or ANDROID_EMULATOR_GPU=swiftshader_indirect where there is none (CI).
+ANDROID_EMULATOR_GPU="${ANDROID_EMULATOR_GPU:-host}"
 ANDROID_CONSOLE_PORT=5620
 
 need_android_sdk() {
@@ -590,7 +601,7 @@ need_pinned_jar() {
   need curl "install curl"
   if [[ ! -f "$jar" ]]; then
     mkdir -p "$(dirname "$jar")"
-    curl -fsSL -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
     mv "$jar.part" "$jar"
   fi
   [[ "$(shasum -a 256 "$jar" | cut -d ' ' -f 1)" == "$sha256" ]] || {
@@ -749,12 +760,20 @@ boot_android() {
   local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb deadline log
   adb="$ANDROID_SDK/platform-tools/adb"
   if ! "$ANDROID_SDK/emulator/emulator" -list-avds | grep -qx "$avd"; then
-    echo no | "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" >/dev/null ||
-      fail "could not create the AVD $avd from $ANDROID_IMAGE: create it in Android Studio's Device Manager as a $profile, then check again."
+    local out
+    # avdmanager writes under XDG_CONFIG_HOME when it is set (a CI runner sets it), and the emulator never reads there.
+    out="$(echo no | env -u XDG_CONFIG_HOME "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" 2>&1)" || {
+      printf '%s\n' "$out" >&2
+      fail "could not create the AVD $avd from $ANDROID_IMAGE (avdmanager says why above): install the image with sdkmanager, or create it in Android Studio's Device Manager as a $profile, then check again."
+    }
+    [[ -f "$ANDROID_AVD_HOME/$avd.ini" ]] || {
+      printf '%s\n' "$out" >&2
+      fail "avdmanager created $avd somewhere other than $ANDROID_AVD_HOME, where the emulator looks: set ANDROID_AVD_HOME to where it went (above), then check again."
+    }
   fi
   log="$(mktemp)"
   "$ANDROID_SDK/emulator/emulator" -avd "$avd" -port "$ANDROID_CONSOLE_PORT" -no-window -no-snapshot-save -no-boot-anim \
-    -no-audio -gpu host >"$log" 2>&1 &
+    -no-audio -gpu "$ANDROID_EMULATOR_GPU" >"$log" 2>&1 &
   EMULATOR_PID=$!
   seat_device "android:$serial"
   "$adb" start-server >/dev/null 2>&1
@@ -770,16 +789,29 @@ boot_android() {
   rm -f "$log"
 }
 
-# Boots the AVD drive-<kind>, installs and launches the app, confirms that it runs with its activity in front, and
-# stops the emulator.
+# Boots the AVD drive-<kind> on the console port $3, installs and launches the app, confirms that it runs with its
+# activity in front, and stops the emulator. Each AVD of a check gets a port of its own: adb keeps the stopped one's
+# serial as offline for a while, and a next emulator on the same port is then reported offline after it has booted.
 launch_android_on() {
+  ANDROID_CONSOLE_PORT="$3"
   local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb
   adb="$ANDROID_SDK/platform-tools/adb"
   boot_android "$1" "$profile"
   "$adb" -s "$serial" install -r "$ANDROID_APP/app/build/outputs/apk/debug/app-debug.apk" >/dev/null ||
     fail "could not install the app on $avd: run adb -s $serial install app/and/app/build/outputs/apk/debug/app-debug.apk to see why."
-  "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" | grep -q 'Status: ok' ||
-    fail "the app did not start on $avd: adb -s $serial logcat -b crash says why."
+  # Right after sys.boot_completed the package manager can still refuse to start an activity: wait until it resolves
+  # the app's, and try the start a few times before calling it a failure.
+  local tries=0
+  until "$adb" -s "$serial" shell cmd package resolve-activity --brief -n "$ANDROID_PACKAGE/.MainActivity" 2>/dev/null |
+    grep -q "$ANDROID_PACKAGE/"; do
+    (( ++tries < 30 )) || fail "Android on $avd does not find $ANDROID_PACKAGE/.MainActivity: is the APK installed?"
+    sleep 2
+  done
+  tries=0
+  until "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" 2>/dev/null | grep -q 'Status: ok'; do
+    (( ++tries < 3 )) || fail "the app did not start on $avd: adb -s $serial logcat -b crash says why."
+    sleep 5
+  done
   sleep 3 # a crash right after the first frame
   if [[ -z "$("$adb" -s "$serial" shell pidof "$ANDROID_PACKAGE" | tr -d '\r')" ]] ||
     ! "$adb" -s "$serial" shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' |
@@ -796,8 +828,8 @@ check_android_launch() {
   android_gradle :app:assembleDebug ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebug), then check again.'
   take_device "the Android launch check"
-  launch_android_on phone pixel_9
-  launch_android_on tablet pixel_tablet
+  launch_android_on phone pixel_9 5620
+  launch_android_on tablet pixel_tablet 5622
   release_device
 }
 

@@ -1,0 +1,48 @@
+# The setup every job of check.yml shares: asdf with the tools a job needs from .tool-versions, and, for a job that
+# starts a local my (scripts/my.sh), my checked out next to this repository at the commit of shared/api/my-commit with
+# the Go and bun of its .tool-versions. The repository is checked out in mobile/, my in my/ (its ../my).
+name: Set up the checks
+description: Install the pinned tools of a job, and my when the job needs it
+inputs:
+  tools:
+    description: The tools of .tool-versions to install, space-separated
+    required: true
+  my:
+    description: Whether to check out and prepare my for a local my
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: asdf-vm/actions/setup@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
+    - name: Install the tools of .tool-versions
+      shell: bash
+      working-directory: mobile
+      run: |
+        for tool in ${{ inputs.tools }}; do
+          asdf plugin add "$tool"
+          version="$(awk -v t="$tool" '$1 == t { print $2 }' .tool-versions)"
+          asdf install "$tool" "$version"
+          # Also the default outside mobile/: actions such as setup-gradle run java from the workspace's root.
+          asdf set --home "$tool" "$version"
+        done
+    - name: Find the my commit
+      if: inputs.my == 'true'
+      id: my
+      shell: bash
+      run: echo "commit=$(tr -d '[:space:]' < mobile/shared/api/my-commit)" >> "$GITHUB_OUTPUT"
+    - name: Check out my
+      if: inputs.my == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: mycroblog/my
+        ref: ${{ steps.my.outputs.commit }}
+        path: my
+    - name: Install the Go and bun of my
+      if: inputs.my == 'true'
+      shell: bash
+      working-directory: my
+      run: |
+        for tool in golang bun; do
+          asdf plugin add "$tool"
+          asdf install "$tool" "$(awk -v t="$tool" '$1 == t { print $2 }' .tool-versions)"
+        done

@@ -1,0 +1,165 @@
+# The gate of main (ADR-0006 §3): the merge queue merges a pull request only when every job here passes. Each job runs
+# the same tasks a developer runs (Taskfile.yml); together they run what `task check`, `task check:devices` and
+# `task check:flow` run, every area and every device kind (ADR-0012 §3).
+#
+# The jobs of the apps run only in the merge queue: there they check the very commit that main gets, and before it the
+# author's `scripts/kit check` checked what the branch changes. Run on every push of a pull request, and again on main,
+# they would spend an hour of macOS runner on the same tree each time (ADR-0012 §1). On a pull request they are
+# skipped, which a required check counts as passed; only the documents and the harness are checked there.
+name: check
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck task
+      - name: task docs:check harness:check
+        working-directory: mobile
+        run: task docs:check harness:check
+
+  ios:
+    name: ios
+    if: github.event_name == 'merge_group'
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - name: Select the Xcode of .xcode-version
+        run: sudo xcode-select -s "/Applications/Xcode_$(tr -d '[:space:]' < mobile/.xcode-version).app"
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck java task xcodegen
+          my: "true"
+      - name: task toolchain:check api:check ios:check
+        working-directory: mobile
+        run: task toolchain:check api:check ios:check
+      - name: task ios:launch ios:test
+        working-directory: mobile
+        run: task ios:launch ios:test
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-test-results
+          path: mobile/app/ios/build/test/
+          if-no-files-found: ignore
+
+  ios-flow:
+    name: ios-flow
+    if: github.event_name == 'merge_group'
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - name: Select the Xcode of .xcode-version
+        run: sudo xcode-select -s "/Applications/Xcode_$(tr -d '[:space:]' < mobile/.xcode-version).app"
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: task xcodegen
+      - name: task ios:test-flow
+        working-directory: mobile
+        run: task ios:test-flow
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-flow-results
+          path: mobile/app/ios/build/test/
+          if-no-files-found: ignore
+
+  android:
+    name: android
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck java task
+          my: "true"
+      - name: Cache the pinned tool jars (Fabrikt, ktlint)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: mobile/app/and/build/tools
+          key: android-tools-${{ hashFiles('mobile/scripts/check/run.sh') }}
+      - name: Cache Gradle's downloads and builds
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          # Every run, a pull request's too, keeps what it downloaded for the next.
+          cache-read-only: false
+      - name: Install the Android SDK packages and enable the emulator's KVM
+        uses: ./mobile/.github/actions/android
+      - name: task toolchain:check api:check android:check android:test
+        working-directory: mobile
+        run: task toolchain:check api:check android:check android:test
+      - name: task android:launch
+        working-directory: mobile
+        run: task android:launch
+      - name: Keep the test reports and screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-test-results
+          path: |
+            mobile/app/and/*/build/reports/
+            mobile/app/and/*/*/build/reports/
+          if-no-files-found: ignore
+
+  android-flow:
+    name: android-flow
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: java task
+      - name: Cache Gradle's downloads and builds
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          # Every run, a pull request's too, keeps what it downloaded for the next.
+          cache-read-only: false
+      - name: Install the Android SDK packages and enable the emulator's KVM
+        uses: ./mobile/.github/actions/android
+      - name: task android:test-flow
+        working-directory: mobile
+        run: task android:test-flow
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-flow-results
+          path: mobile/app/and/app/build/reports/
+          if-no-files-found: ignore
