@@ -19,8 +19,11 @@ Usage: scripts/kit <command> [arguments]
                       and comments the plan.
   ctx <n>             Print the context of an issue: its body, its milestone, the issues of mobile and my and the my
                       commits it depends on and their state, and the ADRs of this repository it cites, as local paths.
-  check               Run every check that exists, through `task check` (Taskfile.yml; `task --list` lists each
-                      area's checks): the pinned toolchains, the documents, the agent harness, and each app.
+  check               Run the checks of what this branch changes from origin/main (ADR-0012 §3): always the pinned
+                      toolchains, the documents and the agent harness, and each app area (ios, android, api) that a
+                      changed file reaches; a change to what the apps share or to the checks reaches all of them.
+                      The tests on a simulator run after the rest; the launch on every device kind and the UI
+                      flows run in CI. `task check` runs every area.
   pr open [--refs]    Run `check`, push the branch and open its pull request. The branch is <type>/<issue>-<slug>;
                       the body says `Closes #<issue>`, or `Refs #<issue>` with --refs for a change that does not
                       complete the issue. Running it again on a branch that has a pull request pushes and stops.
@@ -121,9 +124,53 @@ cmd_ctx() {
 
 # --- check --------------------------------------------------------------------------------------------------------
 
+# The files this branch changes from origin/main, committed or not, one per line.
+changed_files() {
+  local base
+  base="$(git -C "$ROOT" merge-base origin/main HEAD 2>/dev/null)" ||
+    die "no merge base with origin/main: git fetch origin, then check again."
+  {
+    git -C "$ROOT" diff --name-only "$base"
+    git -C "$ROOT" ls-files --others --exclude-standard
+  } | sort -u
+}
+
+# The areas of the apps a set of changed files (on stdin) reaches, one per line with the first file that reaches it
+# (ADR-0012 §3): ios, android and api. What both apps share, and the checks themselves, reach all three.
+reached_areas() {
+  awk '
+    function reach(area, file) { if (!(area in seen)) { seen[area] = file; order[++n] = area } }
+    /^(scripts\/check\/|scripts\/my\.sh$|tasks\/|Taskfile\.yml$|\.tool-versions$|\.xcode-version$|\.github\/|shared\/)/ {
+      reach("ios", $0); reach("android", $0); reach("api", $0); next
+    }
+    /^app\/ios\// { reach("ios", $0); if ($0 ~ /\/API\//) reach("api", $0); next }
+    /^app\/and\// { reach("android", $0); if ($0 ~ /\/api\//) reach("api", $0); next }
+    END { for (i = 1; i <= n; i++) print order[i], seen[order[i]] }
+  '
+}
+
 cmd_check() {
   need task "install go-task: asdf plugin add task && asdf install task (CONTRIBUTING.md)"
-  (cd "$ROOT" && task check) || die "checks failed: fix what each failing task above reports, then run scripts/kit check again."
+  local areas area file parallel=(toolchain:check docs:check harness:check) after=()
+  areas="$(changed_files | reached_areas)"
+  while read -r area file; do
+    [[ -n "$area" ]] || continue
+    printf 'kit: checking %s, which %s reaches\n' "$area" "$file"
+    case "$area" in
+      api) parallel+=(api:check) ;;
+      ios) parallel+=(ios:check); after+=(ios:test) ;;
+      android) parallel+=(android:check android:test) ;;
+    esac
+  done <<<"$areas"
+  [[ -n "$areas" ]] || printf 'kit: no app is changed, so only the toolchains, the documents and the harness are checked\n'
+  printf 'kit: the launch on every device kind and the UI flows run in CI (ADR-0012 §3)\n'
+  (cd "$ROOT" && task check:areas TASKS="${parallel[*]}") ||
+    die "checks failed: fix what each failing task above reports, then run scripts/kit check again."
+  # The tests on a device, after the rest has passed: one simulator at a time (ADR-0012 §2).
+  if (( ${#after[@]} > 0 )); then
+    (cd "$ROOT" && task "${after[@]}") ||
+      die "checks failed: fix what each failing task above reports, then run scripts/kit check again."
+  fi
 }
 
 # --- pr -----------------------------------------------------------------------------------------------------------

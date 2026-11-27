@@ -66,10 +66,14 @@ The checks run on macOS on Apple silicon. Each step below is what `task check` a
 task check
 ```
 
-It runs every check, each area in parallel, and names each one that fails with what to do. When they pass, it
-launches each app on its simulators or emulators, one device at a time: a launch waits while
-`/private/tmp/mycroblog-device.lock` exists, which another launch holds while its device runs. `task --list` lists the
-checks of each area, such as `task docs:check`. `scripts/kit check` runs the same checks.
+It runs every check, each area in parallel, and names each one that fails with what to do. When they pass, it runs the
+iOS tests on one simulator. `task --list` lists the checks of each area, such as `task docs:check`.
+`scripts/kit check` runs only the areas that the branch changes from `origin/main` reach ([ADR-0012](docs/adr/0012-work-resources.md)
+§3). `task check:devices` launches each app on every device kind; CI runs it.
+
+On this Mac, one compile (xcodebuild, Gradle) and one booted simulator or emulator run at a time, across every check and
+`scripts/drive` ([ADR-0012](docs/adr/0012-work-resources.md) §2): a check waits for its seat, and says who holds it.
+`scripts/check/slot.sh status` shows the seats and every booted device.
 
 ## Run the tests
 
@@ -84,7 +88,7 @@ must agree on is under [shared/fixtures](shared/fixtures/README.md); the unit te
 
 `task ios:test` and `task android:test` run the first two layers, and `task check` runs both. The UI-flow layer is
 slower, so it runs in a task of its own: `task check:flow` runs it for both apps (`task ios:test-flow`,
-`task android:test-flow`). Whatever runs on a simulator or emulator takes the same device lock as the launches.
+`task android:test-flow`). Whatever runs on a simulator or emulator takes the device seat.
 
 ### A local my
 
