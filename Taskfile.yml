@@ -7,6 +7,7 @@ output: prefixed
 
 includes:
   android: ./tasks/android.yml
+  api: ./tasks/api.yml
   docs: ./tasks/docs.yml
   harness: ./tasks/harness.yml
   ios: ./tasks/ios.yml
@@ -20,6 +21,7 @@ tasks:
       - toolchain:check
       - docs:check
       - harness:check
+      - api:check
       - ios:check
       - android:check
     # The launches run one after another, after every area has passed: only one simulator or emulator runs at a time.

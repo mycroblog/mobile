@@ -1,0 +1,22 @@
+# The client API (ADR-0003): my's document under shared/api, the clients generated from it into each app, and the check
+# that the committed clients are what the document generates.
+version: "3"
+
+tasks:
+  import:
+    desc: Import api/openapi.yaml of a my checkout (MY, default ../my) at a commit or tag (REF, default its HEAD) into shared/api
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/api-import.sh "{{.MY | default "../my"}}" "{{.REF | default "HEAD"}}"
+
+  generate:
+    desc: Regenerate the Swift and the Kotlin client from shared/api/openapi.yaml into the apps
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - task: :ios:api-generate
+      - task: :android:api-generate
+
+  check:
+    desc: Fail when a committed client differs from what shared/api/openapi.yaml generates, naming task api:generate
+    failfast: false
+    deps: [":ios:api-check", ":android:api-check"]

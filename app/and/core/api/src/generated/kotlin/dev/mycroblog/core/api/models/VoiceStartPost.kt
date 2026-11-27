@@ -1,0 +1,28 @@
+package dev.mycroblog.core.api.models
+
+import kotlin.String
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * The post that the host writes when opening a voice chat room. Asking for one needs the
+ * `write:statuses` scope besides `write:voice`, or the request is a 403
+ * `/api/v1/problems/insufficient-scope`. The link of the room is appended to the text on a line of its own. The post is the host's own: `local` for a room of
+ * the `local` visibility and `private` for a room of the `followers` visibility, federated like
+ * any other post, and the host deletes it like any other. A room of the `following`, `mutuals`,
+ * or `invited` visibility has no start post.
+ */
+@Serializable
+public data class VoiceStartPost(
+  /**
+   * The text of the post, which may be empty for a post of the link only. The link counts
+   * toward the length of a post.
+   */
+  @SerialName("text")
+  public val text: String? = null,
+  /**
+   * A BCP 47 language tag; the user's default post language when omitted.
+   */
+  @SerialName("language")
+  public val language: String? = null,
+)

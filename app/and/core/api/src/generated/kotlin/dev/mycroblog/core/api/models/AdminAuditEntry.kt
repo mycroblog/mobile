@@ -1,0 +1,168 @@
+package dev.mycroblog.core.api.models
+
+import java.util.UUID
+import kotlin.Boolean
+import kotlin.String
+import kotlin.time.Instant
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * One operation of a moderator or an administrator.
+ */
+@Serializable
+public data class AdminAuditEntry(
+  /**
+   * The ID of a resource, a UUIDv7 in its canonical string form.
+   */
+  @Contextual
+  @SerialName("id")
+  public val id: UUID,
+  /**
+   * Who performed the operation. `user`: a signed-in moderator or administrator.
+   * `cli`: the `my` command line, which acts as no user. `system`: the server itself.
+   * `remote`: another server.
+   */
+  @SerialName("actor_kind")
+  public val actorKind: AdminAuditActorKind,
+  /**
+   * The local account of the user who performed the operation; omitted unless
+   * `actor_kind` is `user`, and when the user has no account.
+   */
+  @SerialName("actor_account_id")
+  public val actorAccountId: String? = null,
+  /**
+   * The account of `actor_account_id`; omitted when it is gone.
+   */
+  @SerialName("actor_account")
+  public val actorAccount: Account? = null,
+  /**
+   * The kind of an audited operation, each on one kind of target. On an `account`:
+   * `account_action_issued`, `account_action_lifted`, `account_deletion_canceled`,
+   * `revealed_private_data` (a moderator was shown the account's email address and IP
+   * addresses, a page of its sign-ins, or a page of the accounts that shared an IP address), `two_factor_disabled` (an administrator removed the account's two-factor
+   * authentication), `password_reset_link_issued` (an administrator issued a link that sets
+   * a new password for the account's user), `email_suppression_lifted` (a moderator lifted the
+   * suppression of the primary email address of the account's user), `account_moved` (a limited
+   * local account moved to another local account, which does not inherit the limit),
+   * `account_deliveries_viewed` (a holder of `manage_domains` listed the deliveries of the
+   * account to a remote server; the target name is the handle and the server). On a `domain`:
+   * `domain_action_issued`, `domain_action_lifted`, `instance_marked_available` (an operator
+   * cleared the failures of the server), `delivery_revealed` (a holder of `manage_domains` was
+   * shown the masked sender, activity URI, and inbox of a delivery to the server, whose ID is
+   * `source_event_id`). On a `report`: `report_assigned`,
+   * `report_unassigned`, `report_resolved`, `report_reopened`, `report_note_added`,
+   * `report_forwarded` (a moderator forwarded the report to the target's server). On a
+   * `user` (a registration):
+   * `registration_approved`, `registration_rejected`. On a `setting`: `setting_changed`
+   * (an instance setting), `text_changed` (an instance text). On a `rule`:
+   * `rule_added`, `rule_revised`, `rule_moved`, `rule_retired`. On a `link_card_domain`:
+   * `link_card_domain_fetch_stopped`, `link_card_domain_images_stopped` (the rule of the link
+   * card crawler set on the domain), `link_card_domain_rule_removed`. On a `domain_allow`:
+   * `domain_allow_added`, `domain_allow_removed` (a domain added to and removed from the allowlist
+   * of federation). On a `role`: `role_granted`,
+   * `role_revoked` (a role of a user; the label is the key and the handle), `role_created`,
+   * `role_updated` (its position or permissions), `role_deleted` (the label is the key). On
+   * an `appeal`:
+   * `appeal_upheld`, `appeal_overturned` (which also records the action's
+   * `account_action_lifted`, and for a `ban` the `account_deletion_canceled` on the
+   * `account`). On a `signup_block`: `signup_block_added`, `signup_block_lifted`. On a
+   * `hook_decision`: `hook_decision_applied` (the server acted on a decision hook's verdict
+   * and left state; the actor is the system), `hook_decision_overridden` (a moderator
+   * canceled the decision, also when overturning its appeal), `hook_appeal_upheld` (a
+   * moderator upheld the appeal of a refused post, and the decision stays). On a
+   * `custom_emoji`: `custom_emoji_created`, `custom_emoji_image_replaced`,
+   * `custom_emoji_copied` (a new local emoji copied from a remote one),
+   * `custom_emoji_updated` (its category, aliases, or place in the picker),
+   * `custom_emoji_enabled`, `custom_emoji_disabled`, `custom_emoji_deleted`. On a `webhook`:
+   * `webhook_created`, `webhook_updated` (its URL, description, or events),
+   * `webhook_deleted`, `webhook_enabled`, `webhook_disabled` (by the `system` when the
+   * endpoint answered 410 Gone or kept failing), `webhook_secret_rotated`; the label is its
+   * description and the host name of its URL, never the URL. On an `announcement`:
+   * `announcement_created`, `announcement_updated` (its text or window),
+   * `announcement_published`, `announcement_withdrawn`, `announcement_deleted` (a draft); the
+   * label is the first line of its text. On an `invite`: `invite_created`, `invite_revoked`;
+   * the label is the first characters of its code, never the whole code. On a `relay`: `relay_added`,
+   * `relay_followed`, `relay_unfollowed`, `relay_removed`, and `relay_accepted`,
+   * `relay_rejected` (by the `remote` relay); the label is its URL. The refetch of remote
+   * posts from their servers: `status_refetch_queued` on a `status` (the label is its URI),
+   * `account_statuses_refetch_queued` on an `account`, and `domain_statuses_refetch_queued`
+   * on a `domain`. On a `billing_source`: `billing_import_queued`, an import started by hand;
+   * the ID is the source (`aws`, `gcp`, `cloudflare`, `plugin`) and the label the provider's name. On a `cost_item`:
+   * `cost_item_created`, `cost_item_relabeled` (its name, provider, category, or memo),
+   * `cost_item_price_revised`, `cost_item_end_changed`, and `cost_item_deleted`; the label is
+   * the item's name. On the `supporter_program`: `supporter_program_enabled`,
+   * `supporter_program_disabled`, where the label is the payment provider's name, and
+   * `supporter_tips_enabled`, `supporter_tips_revised` (their amounts), and
+   * `supporter_tips_disabled`, where the label is the currency and the amounts in minor units. On a
+   * `supporter_plan`: `supporter_plan_created`, `supporter_plan_revised`, and
+   * `supporter_plan_retired`; the label is the plan's name. On a `supporter_subscription`:
+   * `supporter_subscription_ended`, an administrator ended it at once, without a refund; the
+   * label is the plan's name and the subscriber's handle. On a `custom_emoji_request`:
+   * `custom_emoji_request_submitted` and `custom_emoji_request_withdrawn` by the requester, and
+   * `custom_emoji_request_approved` (which also records the emoji's `custom_emoji_created` or
+   * `custom_emoji_image_replaced`) and `custom_emoji_request_rejected`; the label is the
+   * `:shortcode:` of the request. On a `payment_provider`: `payment_reconcile_queued`, a
+   * reconciliation with the payment provider started by hand; the ID and the label are the
+   * provider's name (`stripe`, `payjp`). On an `oauth_client`: `oauth_client_disabled`, which also revokes
+   * every token of the client, and `oauth_client_enabled`; the label is the client's name and its
+   * `client_id`. On an `oauth_client_host`: `oauth_client_host_denied`, which also revokes the
+   * tokens of the clients on the host, and `oauth_client_host_allowed`; the ID and the label are
+   * the host. On the `instance`: `service_closure_announced`, the announcement of the closure of
+   * the service or a change of its dates, `service_closure_withdrawn`, its withdrawal,
+   * `service_closure_closed`, the closure of the server, and `service_closure_delivery_completed`,
+   * the end of the delivery of the closure's `Delete` by the server; the ID and the label are
+   * `service_closure`. On a `voice_room`: `voice_room_ended`; the label is the room's name. On a `login_provider`: `login_provider_created`, `login_provider_updated`
+   * (its settings), `login_provider_deleted`, `login_provider_enabled`, `login_provider_disabled`,
+   * and `login_provider_secret_rotated` (a new client secret); the label is the provider's display
+   * name. On a `domain_list_subscription`: `domain_list_subscription_created`,
+   * `domain_list_subscription_updated` (its settings), `domain_list_subscription_deleted`,
+   * `domain_list_draft_accepted` (which also records the `domain_action_issued` or
+   * `domain_action_lifted` on the `domain`), `domain_list_draft_rejected`, and
+   * `domain_list_fetch_queued` (a fetch asked for by hand); the label is its title. The actions
+   * that a subscription in the automatic mode issues and lifts are recorded on the `domain` with
+   * the `system` as the actor. On an `event`: `event_canceled`, a moderator's cancellation of
+   * the event; the ID and the label are the event's ID.
+   */
+  @SerialName("action")
+  public val action: AdminAuditAction,
+  /**
+   * The kind of what an audited operation acted on.
+   */
+  @SerialName("target_kind")
+  public val targetKind: AdminAuditTargetKind,
+  /**
+   * The target: the ID of an account, a status, a report, an appeal, a user, a role, a rule,
+   * a sign-up block, a custom emoji or a request for one, a webhook, an announcement, an
+   * invite, a relay, a cost item, a supporter plan or subscription, an OAuth client, a voice
+   * room, or a login provider; the domain of a domain action or a link card rule; the host of
+   * a denied OAuth client; the source of a billing import; or the key of a setting or a text.
+   */
+  @SerialName("target_id")
+  public val targetId: String,
+  /**
+   * The target's display name when the operation happened, such as `@alice`,
+   * `@bob@example.com`, a domain, a setting's key, a rule's text, or a sign-up block's
+   * kind and value (`email_domain spam.example`); up to 512 characters.
+   */
+  @SerialName("target_label")
+  public val targetLabel: String,
+  /**
+   * Whether the target is still there to look at. It is `false` for an account, a report,
+   * an appeal, or a sign-up block that is gone (erased past its retention), for a role, a
+   * login provider, a custom emoji, a custom emoji request, a webhook, or a relay that was
+   * deleted, and for a link card domain whose rule was removed, which only `target_label`
+   * names now. It is `true` for the other kinds of targets, which are never removed.
+   */
+  @SerialName("target_exists")
+  public val targetExists: Boolean,
+  /**
+   * An opaque ID that relates the entries of one operation; omitted when the operation has
+   * no record of its own.
+   */
+  @SerialName("source_event_id")
+  public val sourceEventId: String? = null,
+  @SerialName("occurred_at")
+  public val occurredAt: Instant,
+)

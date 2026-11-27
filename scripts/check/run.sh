@@ -139,6 +139,57 @@ check_ios_build() {
     fail "the iOS app does not build: fix the errors above."
 }
 
+# The Swift client of the API (ADR-0003 §2): swift-openapi-generator, pinned by the tool package APIGenerator, writes
+# it from my's document into the committed target GeneratedAPI of the API package.
+API_DOCUMENT="$ROOT/shared/api/openapi.yaml"
+IOS_API="$IOS/Packages/API"
+IOS_API_GENERATED="$IOS_API/Sources/GeneratedAPI"
+IOS_API_GENERATOR="$IOS/Tools/APIGenerator"
+
+# Generates the Swift client into the directory $1 (relative to the root of the repository), which it creates; prints the generator's output when it fails.
+ios_api_generate_into() {
+  local out="$1" log
+  [[ "$out" == /* ]] || out="$ROOT/$out"
+  need swift "install Xcode $(tr -d '[:space:]' <"$ROOT/.xcode-version") (CONTRIBUTING.md)"
+  mkdir -p "$out"
+  log="$(mktemp)"
+  if ! (cd "$IOS_API_GENERATOR" && swift run -c release swift-openapi-generator generate \
+    --config "$IOS_API/openapi-generator-config.yaml" --output-directory "$out" "$API_DOCUMENT") >"$log" 2>&1; then
+    grep -E 'error' "$log" >&2 || tail -n 30 "$log" >&2
+    rm -f "$log"
+    fail "swift-openapi-generator could not generate the Swift client from shared/api/openapi.yaml: fix what it says above in my, then import the document again (task api:import)."
+  fi
+  rm -f "$log"
+}
+
+# Writes the Swift client into the API package, replacing what is there, or into the directory $1 when given.
+check_ios_api_generate() {
+  local tmp
+  if [[ -n "${1:-}" ]]; then
+    ios_api_generate_into "$1"
+    return
+  fi
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  ios_api_generate_into "$tmp"
+  find "$IOS_API_GENERATED" -maxdepth 1 -name '*.swift' -delete 2>/dev/null || true
+  mkdir -p "$IOS_API_GENERATED"
+  cp "$tmp"/*.swift "$IOS_API_GENERATED/"
+}
+
+# The committed Swift client is what shared/api/openapi.yaml generates, file for file.
+check_ios_api() {
+  local tmp differences
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  ios_api_generate_into "$tmp"
+  differences="$(diff -rq "$tmp" "$IOS_API_GENERATED" 2>&1 | sed -e "s#$tmp#(generated)#g" -e "s#$ROOT/##g" || true)"
+  if [[ -n "$differences" ]]; then
+    printf '%s\n' "$differences" >&2
+    fail "the Swift client in ${IOS_API_GENERATED#"$ROOT"/} is not what shared/api/openapi.yaml generates: run task api:generate and commit what it changes, never edit the generated files or the document by hand (ADR-0003)."
+  fi
+}
+
 # The newest installed iOS simulator runtime of the selected Xcode's SDK.
 ios_sim_runtime() {
   local sdk
@@ -275,6 +326,85 @@ check_android_build() {
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew assembleDebug), then check again.'
 }
 
+# The Kotlin client of the client API (ADR-0003 §2): Fabrikt, pinned by version and by the SHA-256 of its jar on
+# Maven Central, generates it from shared/api/openapi.yaml into the committed sources of :core:api.
+FABRIKT_VERSION="29.2.0"
+FABRIKT_SHA256="3166eac8c37ebdae70cfc3c52a953c25ab20f03494675a56f1c8b3c9de603458"
+FABRIKT_URL="https://repo1.maven.org/maven2/io/fabrikt/fabrikt/$FABRIKT_VERSION/fabrikt-$FABRIKT_VERSION.jar"
+FABRIKT_JAR="$ANDROID_APP/build/tools/fabrikt-$FABRIKT_VERSION.jar"
+ANDROID_API_SPEC="$ROOT/shared/api/openapi.yaml"
+ANDROID_API_SOURCES="$ANDROID_APP/core/api/src/generated/kotlin"
+ANDROID_API_PACKAGE="dev.mycroblog.core.api"
+FABRIKT_OPTIONS=(
+  --targets HTTP_MODELS --targets CLIENT
+  --http-client-target KTOR --http-client-opts GROUP_BY_TAG
+  --serialization-library KOTLINX_SERIALIZATION --instant-library KOTLIN_TIME_INSTANT
+  --http-model-opts FAULT_TOLERANT_ENUMS --validation-library NO_VALIDATION
+)
+
+# Downloads the Fabrikt jar once, and refuses it when its SHA-256 is not the pinned one.
+need_fabrikt() {
+  need java "install the JDK of .tool-versions with asdf install java"
+  need curl "install curl"
+  if [[ ! -f "$FABRIKT_JAR" ]]; then
+    mkdir -p "$(dirname "$FABRIKT_JAR")"
+    curl -fsSL -o "$FABRIKT_JAR.part" "$FABRIKT_URL" || fail "could not download Fabrikt from $FABRIKT_URL: check the network, then run again."
+    mv "$FABRIKT_JAR.part" "$FABRIKT_JAR"
+  fi
+  [[ "$(shasum -a 256 "$FABRIKT_JAR" | cut -d ' ' -f 1)" == "$FABRIKT_SHA256" ]] || {
+    rm -f "$FABRIKT_JAR"
+    fail "the Fabrikt jar from $FABRIKT_URL does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change FABRIKT_SHA256 without checking the jar."
+  }
+}
+
+# Writes the Kotlin client that shared/api/openapi.yaml generates into the directory $1, replacing what it held.
+android_api_generate() {
+  local dest="$1" work
+  need_fabrikt
+  work="$(mktemp -d)"
+  # The English locale keeps Fabrikt's messages, and anything it derives from the locale, the same on every machine.
+  java -Duser.language=en -Duser.country=US -Dfile.encoding=UTF-8 -jar "$FABRIKT_JAR" \
+    --api-file "$ANDROID_API_SPEC" --base-package "$ANDROID_API_PACKAGE" --output-directory "$work" \
+    "${FABRIKT_OPTIONS[@]}" >"$work/log" 2>&1 || {
+    cat "$work/log" >&2
+    rm -rf "$work"
+    fail "Fabrikt could not generate the Kotlin client from shared/api/openapi.yaml: fix what it says above (the document comes from my; never edit it here)."
+  }
+  rm -rf "$dest"
+  mkdir -p "$(dirname "$dest")"
+  mv "$work/src/main/kotlin" "$dest"
+  rm -rf "$work"
+}
+
+# Writes the client into the committed sources, or into the directory $1, which must be new or empty.
+check_android_api_generate() {
+  local out="${1:-}"
+  if [[ -n "$out" ]]; then
+    [[ ! -e "$out" || ( -d "$out" && -z "$(ls -A "$out")" ) ]] ||
+      fail "OUT=$out is not a new or empty directory: name one that is, so that nothing in it is replaced."
+    android_api_generate "$out"
+  else
+    android_api_generate "$ANDROID_API_SOURCES"
+  fi
+  printf 'android: generated the Kotlin client from shared/api/openapi.yaml into %s\n' "${out:-${ANDROID_API_SOURCES#"$ROOT"/}}"
+}
+
+# Regenerates the Kotlin client into a temporary directory and fails when it differs from the committed one.
+ANDROID_API_CHECK_DIR=""
+check_android_api_check() {
+  local tmp diffs
+  tmp="$(mktemp -d)"
+  ANDROID_API_CHECK_DIR="$tmp"
+  trap 'rm -rf "$ANDROID_API_CHECK_DIR"' EXIT
+  android_api_generate "$tmp/kotlin"
+  diffs="$(diff -rq "$ANDROID_API_SOURCES" "$tmp/kotlin" 2>&1 | sed -e "s|$ANDROID_API_SOURCES|${ANDROID_API_SOURCES#"$ROOT"/}|g" -e "s|$tmp/kotlin|(generated)|g" || true)"
+  if [[ -n "$diffs" ]]; then
+    printf '%s\n' "$diffs" | head -n 20 >&2
+    (( $(wc -l <<<"$diffs") > 20 )) && printf '... and %s more\n' "$(( $(wc -l <<<"$diffs") - 20 ))" >&2
+    fail "the Kotlin client in ${ANDROID_API_SOURCES#"$ROOT"/} is not what shared/api/openapi.yaml generates: run task api:generate and commit the result (never edit the generated code by hand)."
+  fi
+}
+
 EMULATOR_PID=""
 HOLDS_DEVICE_LOCK=""
 
@@ -371,7 +501,11 @@ case "${1:-}" in
   ios-packages) check_ios_packages ;;
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
+  ios-api-generate) check_ios_api_generate "${2:-}" ;;
+  ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
   android-launch) check_android_launch ;;
+  android-api-generate) check_android_api_generate "${2:-}" ;;
+  android-api-check) check_android_api_check ;;
   *) fail "unknown check ${1:-(none)}: run the checks with task check (task --list shows them)." ;;
 esac

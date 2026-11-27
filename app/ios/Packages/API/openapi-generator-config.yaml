@@ -1,0 +1,7 @@
+# How task ios:api-generate generates Sources/GeneratedAPI from shared/api/openapi.yaml (ADR-0003 §2). The generated
+# types are visible to this package only; the target API is what the rest of the app imports (ADR-0009 §7).
+generate:
+  - types
+  - client
+accessModifier: package
+namingStrategy: idiomatic

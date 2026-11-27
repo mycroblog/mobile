@@ -1,0 +1,54 @@
+package dev.mycroblog.core.api.models
+
+import kotlin.Boolean
+import kotlin.String
+import kotlin.collections.List
+import kotlin.time.Instant
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * What the client of a session needs to connect to the audio of a room. `kind` is the method
+ * of the server (`p2p` or `sfu`); the client asks for a new grant before `expires_at`.
+ *
+ * With `sfu`, `url` is the `wss:` URL of the server's media node that holds the room and `token`
+ * a ticket for it, which connects once and only within 30 seconds. The client opens a
+ * WebSocket to `url` with the query parameter `ticket` set to `token`
+ * (`GET <url>?ticket=<token>`, an upgrade to the WebSocket protocol; browsers cannot send
+ * headers on a WebSocket, so the ticket travels in the URL). An expired or used ticket, or
+ * one for another node, is refused. Each message is a JSON text frame with a version `v` (1)
+ * and a `type`: the client sends a `VoiceSFUClientMessage` and receives a
+ * `VoiceSFUNodeMessage`. The node always makes the offer, on one `RTCPeerConnection` for the
+ * session: its first `offer` has one transceiver that receives the user's microphone and one
+ * that sends the audio of each speaker, and it offers again only when the speakers change. A
+ * client that changes network sends `restart` and gets an offer that restarts ICE. When the
+ * WebSocket closes while the connection lives, or on `migrate`, the client asks for a new
+ * grant (`POST /voice/rooms/{id}/grant`) and connects to its `url` with the same session.
+ */
+@Serializable
+public data class VoiceGrant(
+  @SerialName("kind")
+  public val kind: VoiceGrantKind,
+  /**
+   * The `wss:` URL of the media node for `sfu`; omitted for `p2p`.
+   */
+  @SerialName("url")
+  public val url: String? = null,
+  /**
+   * The single-use ticket of the media node for `sfu`; omitted for `p2p`.
+   */
+  @SerialName("token")
+  public val token: String? = null,
+  /**
+   * The STUN and TURN servers of the connections.
+   */
+  @SerialName("ice_servers")
+  public val iceServers: List<VoiceIceServer>,
+  /**
+   * Whether the client connects through TURN only (`iceTransportPolicy` `relay`).
+   */
+  @SerialName("relay_only")
+  public val relayOnly: Boolean,
+  @SerialName("expires_at")
+  public val expiresAt: Instant,
+)
