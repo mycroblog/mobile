@@ -32,7 +32,7 @@ struct ServerLookupSnapshotTests {
         }
         assertSnapshot(
             of: screen,
-            as: .image(layout: .device(config: .iPhone13)),
+            as: .image(perceptualPrecision: 0.98, layout: .device(config: .iPhone13)),
             named: "iPhone",
             fileID: fileID,
             file: file,

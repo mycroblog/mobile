@@ -20,7 +20,10 @@ runs:
       run: |
         for tool in ${{ inputs.tools }}; do
           asdf plugin add "$tool"
-          asdf install "$tool" "$(awk -v t="$tool" '$1 == t { print $2 }' .tool-versions)"
+          version="$(awk -v t="$tool" '$1 == t { print $2 }' .tool-versions)"
+          asdf install "$tool" "$version"
+          # Also the default outside mobile/: actions such as setup-gradle run java from the workspace's root.
+          asdf set --home "$tool" "$version"
         done
     - name: Find the my commit
       if: inputs.my == 'true'

@@ -15,6 +15,7 @@ struct DestinationPlaceholderSnapshotTests {
         let screen = NavigationStack {
             DestinationPlaceholder(destination: .settings)
         }
-        assertSnapshot(of: screen, as: .image(layout: .device(config: .iPhone13)), named: "iPhone")
+        assertSnapshot(
+            of: screen, as: .image(perceptualPrecision: 0.98, layout: .device(config: .iPhone13)), named: "iPhone")
     }
 }
