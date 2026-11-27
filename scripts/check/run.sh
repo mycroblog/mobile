@@ -553,9 +553,9 @@ take_device_lock() {
   HOLDS_DEVICE_LOCK=1
 }
 
-# Boots the AVD drive-<kind> (the one scripts/drive uses), creating it when it is missing, installs and launches the
-# app, confirms that it runs with its activity in front, and stops the emulator.
-launch_android_on() {
+# Boots the AVD drive-<kind> (the one scripts/drive uses) as emulator-$ANDROID_CONSOLE_PORT, creating it as a
+# <profile> when it is missing, and waits until it has booted. release_device stops it.
+boot_android() {
   local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb deadline log
   adb="$ANDROID_SDK/platform-tools/adb"
   if ! "$ANDROID_SDK/emulator/emulator" -list-avds | grep -qx "$avd"; then
@@ -577,6 +577,14 @@ launch_android_on() {
     sleep 2
   done
   rm -f "$log"
+}
+
+# Boots the AVD drive-<kind>, installs and launches the app, confirms that it runs with its activity in front, and
+# stops the emulator.
+launch_android_on() {
+  local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb
+  adb="$ANDROID_SDK/platform-tools/adb"
+  boot_android "$1" "$profile"
   "$adb" -s "$serial" install -r "$ANDROID_APP/app/build/outputs/apk/debug/app-debug.apk" >/dev/null ||
     fail "could not install the app on $avd: run adb -s $serial install app/and/app/build/outputs/apk/debug/app-debug.apk to see why."
   "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" | grep -q 'Status: ok' ||
@@ -603,6 +611,65 @@ check_android_launch() {
   release_device
 }
 
+# The test layers of the Android app that run on the JVM (ADR-0006 §1): the unit tests, the screenshot tests and the
+# integration tests, the last against the local my at MY_URL (task android:test starts it with task my:up).
+ANDROID_SCREENSHOT_MODULES=("core/designsystem")
+
+# Prints the path of each image a reviewer opens: every reference, and each new image and comparison of a failure.
+print_android_screenshots() {
+  local module f
+  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
+    while IFS= read -r -d '' f; do
+      printf 'android: screenshot %s\n' "${f#"$ROOT"/}"
+    done < <(find "$ANDROID_APP/$module/src/test/screenshots" -name '*.png' -print0 2>/dev/null | sort -z)
+    while IFS= read -r -d '' f; do
+      printf 'android: screenshot differs, open %s\n' "${f#"$ROOT"/}" >&2
+    done < <(find "$ANDROID_APP/$module/build/outputs/roborazzi" \( -name '*_actual.png' -o -name '*_compare.png' \) -print0 2>/dev/null | sort -z)
+  done
+}
+
+check_android_test() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
+  local url="${MY_URL:-}" module tasks=(:core:api:test :core:api:integrationTest)
+  [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
+  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
+    tasks+=(":${module//\//:}:verifyRoborazziDebug")
+    # A comparison left by an earlier run must not be taken for one of this run.
+    find "$ANDROID_APP/$module/build/outputs/roborazzi" \( -name '*_actual.png' -o -name '*_compare.png' \) -delete 2>/dev/null || true
+  done
+  if ! MY_URL="$url" android_gradle "${tasks[@]}" --continue; then
+    print_android_screenshots
+    fail "the Android tests failed: fix what each failed test says above. A screenshot that differs on purpose is recorded again with task android:record-screenshots; open each image named above before committing it."
+  fi
+  print_android_screenshots
+}
+
+# Records the reference images of the screenshot tests again, replacing the committed ones.
+check_android_record_screenshots() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
+  local module tasks=()
+  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
+    tasks+=(":${module//\//:}:recordRoborazziDebug")
+  done
+  android_gradle "${tasks[@]}" || fail 'recording the screenshots failed: fix what Gradle says above.'
+  print_android_screenshots
+}
+
+# The UI-flow tests of the Android app (ADR-0006 §1), the instrumented tests of app/src/androidTest, on the phone
+# emulator drive-phone under the device lock.
+check_android_test_flow() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
+  android_gradle :app:assembleDebug :app:assembleDebugAndroidTest ||
+    fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebugAndroidTest), then check again.'
+  trap release_device EXIT
+  take_device_lock
+  boot_android phone pixel_9
+  ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest ||
+    fail "the Android UI-flow tests failed on drive-phone: fix what each failed test says above; the report is app/and/app/build/reports/androidTests/connected/debug/index.html."
+  printf 'check: the UI-flow tests pass on drive-phone (pixel_9)\n'
+  release_device
+}
+
 case "${1:-}" in
   markdown) check_markdown ;;
   fullwidth-parens) check_fullwidth_parens ;;
@@ -623,6 +690,9 @@ case "${1:-}" in
   ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
   android-launch) check_android_launch ;;
+  android-test) check_android_test ;;
+  android-record-screenshots) check_android_record_screenshots ;;
+  android-test-flow) check_android_test_flow ;;
   android-api-generate) check_android_api_generate "${2:-}" ;;
   android-api-check) check_android_api_check ;;
   *) fail "unknown check ${1:-(none)}: run the checks with task check (task --list shows them)." ;;

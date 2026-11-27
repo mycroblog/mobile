@@ -25,6 +25,7 @@ tasks:
       - api:check
       - ios:check
       - android:check
+      - android:test
     # The launches and the tests on devices run one after another, after every area has passed: only one simulator or
     # emulator runs at a time.
     cmds:
@@ -36,3 +37,4 @@ tasks:
     desc: Run the UI-flow tests of every app, one device at a time; slower, so not part of task check
     cmds:
       - task: ios:test-flow
+      - task: android:test-flow

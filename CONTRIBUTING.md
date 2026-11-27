@@ -73,24 +73,25 @@ checks of each area, such as `task docs:check`. `scripts/kit check` runs the sam
 
 ## Run the tests
 
-The tests have four layers ([ADR-0006](docs/adr/0006-verification-harness.md) §1). Each app runs them on one
-simulator or emulator, under the same device lock as the launches.
+The tests have four layers ([ADR-0006](docs/adr/0006-verification-harness.md) §1). The expected data that both apps
+must agree on is under [shared/fixtures](shared/fixtures/README.md); the unit tests of both read it from there.
 
-| Layer | What it pins | iOS | Run it with |
+| Layer | What it pins | iOS | Android |
 | --- | --- | --- | --- |
-| Unit | logic, and the shared fixtures of `shared/fixtures/` | Swift Testing, `app/ios/Packages/API/Tests/APITests` | `task ios:test` |
-| Screenshot | how a screen renders, as a reference image | swift-snapshot-testing, `app/ios/Packages/Features/Tests` | `task ios:test` |
-| Integration | the exchange with a local my | XCTest, `app/ios/Packages/API/Tests/APIIntegrationTests` | `task ios:test` |
-| UI flow | a main flow through the running app | XCUITest, `app/ios/UITests` | `task ios:test-flow` |
+| Unit | logic, and the shared fixtures | Swift Testing, `app/ios/Packages/API/Tests/APITests` | JUnit on the JVM, `app/and/core/api/src/test` |
+| Screenshot | how a screen renders, as a reference image | swift-snapshot-testing, `app/ios/Packages/Features/Tests` | Roborazzi on Robolectric, `app/and/core/designsystem/src/test` |
+| Integration | the exchange with a local my | XCTest, `app/ios/Packages/API/Tests/APIIntegrationTests` | JUnit on the JVM, `app/and/core/api/src/integrationTest` |
+| UI flow | a main flow through the running app | XCUITest, `app/ios/UITests` | Compose UI tests on `drive-phone`, `app/and/app/src/androidTest` |
 
-`task check` runs the unit, screenshot and integration layers. The UI-flow layer is slower, so it runs in a task of
-its own: `task check:flow` runs it for every app.
+`task ios:test` and `task android:test` run the first three layers, and `task check` runs both. The UI-flow layer is
+slower, so it runs in a task of its own: `task check:flow` runs it for both apps (`task ios:test-flow`,
+`task android:test-flow`). Whatever runs on a simulator or emulator takes the same device lock as the launches.
 
 ### A local my
 
-The integration and UI-flow tests talk to my's demo server, with its fakes and seeded scenario (my ADR-0015), which
+The integration tests talk to my's demo server, with its fakes and seeded scenario (my ADR-0015), which
 `task my:up` starts from a checkout of [mycroblog/my](https://github.com/mycroblog/my) at the commit of
-`shared/api/my-commit` and `task my:down` stops. The tasks that need it start it. It needs:
+`shared/api/my-commit` and `task my:down` stops. The tasks that need it start it, and later runs reuse it. It needs:
 
 - my checked out next to this repository, as `../my`, or `MY` set to a checkout of it.
 - Go and bun at the versions of my's `.tool-versions`: run `asdf install` in `.tmp/my`, the worktree of my that
@@ -100,15 +101,21 @@ The first start builds my and takes about two minutes. `MY_PORT` changes its por
 
 ### Screenshots
 
-`task ios:test` prints the path of each reference image. When a screenshot test fails, it also prints the new image
-and the difference of each failing one: open them next to the reference. When the new rendering is the right one,
-record every reference again and commit what changes:
+`task ios:test` and `task android:test` print the path of each reference image. When a screenshot test fails, they
+also print the new image and the difference of each failing one: open them next to the reference. When the new
+rendering is the right one, record the references again, open each image, and commit them with the change:
 
 ```bash
 task ios:record-screenshots
 ```
 
-The references are shot on the simulator `mycroblog-check-phone` (iPhone 17) with the iOS of the Xcode in
-`.xcode-version`; another device or iOS renders them differently, so record them again when that Xcode changes. The
-tests run without a host app, where Liquid Glass, such as the tab bar's, does not render: shoot the screens below the
-tab container.
+```bash
+task android:record-screenshots
+```
+
+- iOS: the references are shot on the simulator `mycroblog-check-phone` (iPhone 17) with the iOS of the Xcode in
+  `.xcode-version`; another device or iOS renders them differently, so record them again when that Xcode changes. The
+  tests run without a host app, where Liquid Glass, such as the tab bar's, does not render: shoot the screens below the
+  tab container.
+- Android: the references are under `app/and/<module>/src/test/screenshots`, and a failure's new image (`_actual`)
+  and comparison (`_compare`) under `app/and/<module>/build/outputs/roborazzi`.
