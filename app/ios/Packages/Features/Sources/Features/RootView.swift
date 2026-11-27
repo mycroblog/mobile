@@ -8,7 +8,7 @@ import SwiftUI
 /// open from a list in a fifth tab, so that the system's More tab never appears: a NavigationStack inside it shows a
 /// second navigation bar under the system's own.
 public struct RootView: View {
-    @SceneStorage("RootView.selection") private var selection: RootSelection = .destination(.home)
+    @SceneStorage("RootView.navigation") private var navigation = RootNavigation()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     // The server screen belongs to the scene, above the tab container, so that rebuilding the destinations when the
     // width changes does not close it; whether it is open and the address typed in it are restored with the scene
@@ -80,28 +80,21 @@ public struct RootView: View {
         serverLookup = ServerLookupModel(lookup: instanceLookup, address: serverAddress)
     }
 
-    /// The selected tab: in compact width an overflow destination is shown in the overflow list's tab; in regular
-    /// width the overflow list has no tab, so Home stands for it.
+    /// The selected tab, which RootNavigation maps to and from what the root shows.
     private var tabSelection: Binding<RootSelection> {
         Binding {
-            if isCompact {
-                selection.overflowDestination == nil ? selection : .overflowList
-            } else {
-                selection == .overflowList ? .destination(.home) : selection
-            }
-        } set: { newValue in
-            // Selecting the overflow list's tab again keeps the destination open in it.
-            if newValue == .overflowList, selection.overflowDestination != nil { return }
-            selection = newValue
+            navigation.tab(isCompact: isCompact)
+        } set: { tab in
+            navigation.select(tab: tab)
         }
     }
 
-    /// The stack of the overflow list's tab: the overflow destination that is open, if any.
+    /// The stack of the overflow list's tab: the overflow destination open in it, if any.
     private var overflowPath: Binding<[TopLevelDestination]> {
         Binding {
-            selection.overflowDestination.map { [$0] } ?? []
+            navigation.overflowPath
         } set: { path in
-            selection = path.last.map(RootSelection.destination) ?? .overflowList
+            navigation.setOverflowPath(path)
         }
     }
 }
