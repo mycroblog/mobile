@@ -1,0 +1,1 @@
+- Confirm new tests ran in `app/ios/build/test/<layer>.log` (one line per test case); `task ios:test` prints only a summary per layer - a passing summary does not show which tests ran (#10, 2026-11-27)
