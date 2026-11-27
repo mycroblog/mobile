@@ -18,25 +18,15 @@ import kotlinx.coroutines.launch
 /**
  * The state of the server screen: it looks up the address the user typed and holds the result.
  *
- * The address and whether it was found invalid are kept in [savedStateHandle], so that the error comes back after
- * the process ends. A lookup's result is not: coming back, the screen shows the address with no result, and the user
- * looks it up again.
+ * Only the address is kept in [savedStateHandle]: after the process ends, the screen comes back with the typed
+ * address alone, with no message and no result, as on iOS, and the user looks it up again.
  */
 @HiltViewModel
 class ChooseServerViewModel @Inject constructor(
     private val repository: InstanceRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val state = MutableStateFlow(
-        ChooseServerUiState(
-            address = savedStateHandle[ADDRESS] ?: "",
-            lookup = if (savedStateHandle.get<Boolean>(INVALID) == true) {
-                ServerLookupState.InvalidAddress
-            } else {
-                ServerLookupState.Idle
-            },
-        ),
-    )
+    private val state = MutableStateFlow(ChooseServerUiState(address = savedStateHandle[ADDRESS] ?: ""))
     val uiState: StateFlow<ChooseServerUiState> = state.asStateFlow()
 
     private var lookup: Job? = null
@@ -47,7 +37,6 @@ class ChooseServerViewModel @Inject constructor(
         lookup?.cancel()
         state.value = ChooseServerUiState(address = text)
         savedStateHandle[ADDRESS] = text
-        savedStateHandle[INVALID] = false
     }
 
     /** Looks up the address in the field, or says that it is not an address. */
@@ -57,7 +46,6 @@ class ChooseServerViewModel @Inject constructor(
         val address = ServerAddress.parse(current.address)
         if (address == null) {
             state.value = current.copy(lookup = ServerLookupState.InvalidAddress)
-            savedStateHandle[INVALID] = true
             return
         }
         start(address)
@@ -83,6 +71,5 @@ class ChooseServerViewModel @Inject constructor(
 
     private companion object {
         const val ADDRESS = "address"
-        const val INVALID = "invalid"
     }
 }
