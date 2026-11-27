@@ -326,6 +326,85 @@ check_android_build() {
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew assembleDebug), then check again.'
 }
 
+# The Kotlin client of the client API (ADR-0003 §2): Fabrikt, pinned by version and by the SHA-256 of its jar on
+# Maven Central, generates it from shared/api/openapi.yaml into the committed sources of :core:api.
+FABRIKT_VERSION="29.2.0"
+FABRIKT_SHA256="3166eac8c37ebdae70cfc3c52a953c25ab20f03494675a56f1c8b3c9de603458"
+FABRIKT_URL="https://repo1.maven.org/maven2/io/fabrikt/fabrikt/$FABRIKT_VERSION/fabrikt-$FABRIKT_VERSION.jar"
+FABRIKT_JAR="$ANDROID_APP/build/tools/fabrikt-$FABRIKT_VERSION.jar"
+ANDROID_API_SPEC="$ROOT/shared/api/openapi.yaml"
+ANDROID_API_SOURCES="$ANDROID_APP/core/api/src/generated/kotlin"
+ANDROID_API_PACKAGE="dev.mycroblog.core.api"
+FABRIKT_OPTIONS=(
+  --targets HTTP_MODELS --targets CLIENT
+  --http-client-target KTOR --http-client-opts GROUP_BY_TAG
+  --serialization-library KOTLINX_SERIALIZATION --instant-library KOTLIN_TIME_INSTANT
+  --http-model-opts FAULT_TOLERANT_ENUMS --validation-library NO_VALIDATION
+)
+
+# Downloads the Fabrikt jar once, and refuses it when its SHA-256 is not the pinned one.
+need_fabrikt() {
+  need java "install the JDK of .tool-versions with asdf install java"
+  need curl "install curl"
+  if [[ ! -f "$FABRIKT_JAR" ]]; then
+    mkdir -p "$(dirname "$FABRIKT_JAR")"
+    curl -fsSL -o "$FABRIKT_JAR.part" "$FABRIKT_URL" || fail "could not download Fabrikt from $FABRIKT_URL: check the network, then run again."
+    mv "$FABRIKT_JAR.part" "$FABRIKT_JAR"
+  fi
+  [[ "$(shasum -a 256 "$FABRIKT_JAR" | cut -d ' ' -f 1)" == "$FABRIKT_SHA256" ]] || {
+    rm -f "$FABRIKT_JAR"
+    fail "the Fabrikt jar from $FABRIKT_URL does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change FABRIKT_SHA256 without checking the jar."
+  }
+}
+
+# Writes the Kotlin client that shared/api/openapi.yaml generates into the directory $1, replacing what it held.
+android_api_generate() {
+  local dest="$1" work
+  need_fabrikt
+  work="$(mktemp -d)"
+  # The English locale keeps Fabrikt's messages, and anything it derives from the locale, the same on every machine.
+  java -Duser.language=en -Duser.country=US -Dfile.encoding=UTF-8 -jar "$FABRIKT_JAR" \
+    --api-file "$ANDROID_API_SPEC" --base-package "$ANDROID_API_PACKAGE" --output-directory "$work" \
+    "${FABRIKT_OPTIONS[@]}" >"$work/log" 2>&1 || {
+    cat "$work/log" >&2
+    rm -rf "$work"
+    fail "Fabrikt could not generate the Kotlin client from shared/api/openapi.yaml: fix what it says above (the document comes from my; never edit it here)."
+  }
+  rm -rf "$dest"
+  mkdir -p "$(dirname "$dest")"
+  mv "$work/src/main/kotlin" "$dest"
+  rm -rf "$work"
+}
+
+# Writes the client into the committed sources, or into the directory $1, which must be new or empty.
+check_android_api_generate() {
+  local out="${1:-}"
+  if [[ -n "$out" ]]; then
+    [[ ! -e "$out" || ( -d "$out" && -z "$(ls -A "$out")" ) ]] ||
+      fail "OUT=$out is not a new or empty directory: name one that is, so that nothing in it is replaced."
+    android_api_generate "$out"
+  else
+    android_api_generate "$ANDROID_API_SOURCES"
+  fi
+  printf 'android: generated the Kotlin client from shared/api/openapi.yaml into %s\n' "${out:-${ANDROID_API_SOURCES#"$ROOT"/}}"
+}
+
+# Regenerates the Kotlin client into a temporary directory and fails when it differs from the committed one.
+ANDROID_API_CHECK_DIR=""
+check_android_api_check() {
+  local tmp diffs
+  tmp="$(mktemp -d)"
+  ANDROID_API_CHECK_DIR="$tmp"
+  trap 'rm -rf "$ANDROID_API_CHECK_DIR"' EXIT
+  android_api_generate "$tmp/kotlin"
+  diffs="$(diff -rq "$ANDROID_API_SOURCES" "$tmp/kotlin" 2>&1 | sed -e "s|$ANDROID_API_SOURCES|${ANDROID_API_SOURCES#"$ROOT"/}|g" -e "s|$tmp/kotlin|(generated)|g" || true)"
+  if [[ -n "$diffs" ]]; then
+    printf '%s\n' "$diffs" | head -n 20 >&2
+    (( $(wc -l <<<"$diffs") > 20 )) && printf '... and %s more\n' "$(( $(wc -l <<<"$diffs") - 20 ))" >&2
+    fail "the Kotlin client in ${ANDROID_API_SOURCES#"$ROOT"/} is not what shared/api/openapi.yaml generates: run task api:generate and commit the result (never edit the generated code by hand)."
+  fi
+}
+
 EMULATOR_PID=""
 HOLDS_DEVICE_LOCK=""
 
@@ -426,5 +505,7 @@ case "${1:-}" in
   ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
   android-launch) check_android_launch ;;
+  android-api-generate) check_android_api_generate "${2:-}" ;;
+  android-api-check) check_android_api_check ;;
   *) fail "unknown check ${1:-(none)}: run the checks with task check (task --list shows them)." ;;
 esac

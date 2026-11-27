@@ -1,0 +1,55 @@
+package dev.mycroblog.core.api.models
+
+import kotlin.String
+import kotlin.collections.Map
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+
+/**
+ * The kind of a place: `voice` a voice chat room of this server, `physical` a place to meet in
+ * person, and `url` a link such as a stream or a meeting of another service.
+ */
+@Serializable(with = EventPlaceKind.Serializer::class)
+public enum class EventPlaceKind(
+  public val `value`: String,
+) {
+  @SerialName("voice")
+  VOICE("voice"),
+  @SerialName("physical")
+  PHYSICAL("physical"),
+  @SerialName("url")
+  URL("url"),
+  @SerialName("UNRECOGNIZED")
+  UNRECOGNIZED("UNRECOGNIZED"),
+  ;
+
+  override fun toString(): String = value
+
+  public object Serializer : KSerializer<EventPlaceKind> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("dev.mycroblog.core.api.models.EventPlaceKind", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, `value`: EventPlaceKind) {
+      encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): EventPlaceKind {
+      val value = decoder.decodeString()
+      val ignoreCase = (decoder as? JsonDecoder)?.json?.configuration?.decodeEnumsCaseInsensitive == true
+      return entries.firstOrNull { it.value.equals(value, ignoreCase) } ?: UNRECOGNIZED
+    }
+  }
+
+  public companion object {
+    private val mapping: Map<String, EventPlaceKind> = entries.associateBy(EventPlaceKind::value)
+
+    public fun fromValue(`value`: String): EventPlaceKind = mapping[value] ?: UNRECOGNIZED
+  }
+}
