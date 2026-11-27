@@ -1,7 +1,8 @@
-@testable import Features
 import SnapshotTesting
 import SwiftUI
 import Testing
+
+@testable import Features
 
 /// The placeholder of a destination, in its navigation stack, as it renders on an iPhone in portrait.
 ///

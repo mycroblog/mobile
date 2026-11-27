@@ -50,10 +50,10 @@ public struct Problem: Error, Sendable, Hashable {
     /// The problem of an answer the document does not describe, or nil when its body is not a problem document.
     package init?(_ payload: UndocumentedPayload, maxBytes: Int = 64 * 1024) async {
         guard let body = payload.body,
-              let contentType = payload.headerFields[.contentType],
-              contentType.lowercased().hasPrefix("application/problem+json"),
-              let data = try? await Data(collecting: body, upTo: maxBytes),
-              let problem = try? JSONDecoder().decode(Components.Schemas.Problem.self, from: data)
+            let contentType = payload.headerFields[.contentType],
+            contentType.lowercased().hasPrefix("application/problem+json"),
+            let data = try? await Data(collecting: body, upTo: maxBytes),
+            let problem = try? JSONDecoder().decode(Components.Schemas.Problem.self, from: data)
         else { return nil }
         self.init(problem)
     }

@@ -6,7 +6,9 @@ enum RootSelection: Hashable, Sendable, RawRepresentable {
 
     /// The destinations that have a tab of their own in compact width; the rest open from the overflow list
     /// (ADR-0009 §2: at most five tab bar items).
-    static let compactTabBarDestinations: [TopLevelDestination] = [.home, .localTimeline, .federatedTimeline, .notifications]
+    static let compactTabBarDestinations: [TopLevelDestination] = [
+        .home, .localTimeline, .federatedTimeline, .notifications,
+    ]
 
     static var overflowDestinations: [TopLevelDestination] {
         TopLevelDestination.allCases.filter { !compactTabBarDestinations.contains($0) }

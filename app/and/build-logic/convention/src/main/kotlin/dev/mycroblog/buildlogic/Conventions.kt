@@ -2,6 +2,7 @@ package dev.mycroblog.buildlogic
 
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.LibraryExtension
+import com.android.build.api.dsl.Lint
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
@@ -9,6 +10,7 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
@@ -59,6 +61,7 @@ internal fun Project.configureApplication(extension: ApplicationExtension) = wit
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
     }
+    lint { configureLint(this) }
 }
 
 internal fun Project.configureLibrary(extension: LibraryExtension) = with(extension) {
@@ -76,4 +79,24 @@ internal fun Project.configureLibrary(extension: LibraryExtension) = with(extens
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
     }
+    lint { configureLint(this) }
+}
+
+/** Android Lint on a module with no Android code, with the options of the Android modules. */
+internal fun Project.configureJvmLint() {
+    pluginManager.apply("com.android.lint")
+    extensions.configure<Lint> { configureLint(this) }
+}
+
+/**
+ * Android Lint, which task android:check runs in every module (`./gradlew lint`): any warning fails the check, and
+ * lint prints each finding with its issue id. Generated sources are not checked (lint's default).
+ */
+internal fun configureLint(lint: Lint) = with(lint) {
+    abortOnError = true
+    warningsAsErrors = true
+    textReport = true
+    // These report that a newer version was released, so they would fail a commit that did not change: versions
+    // are raised on purpose, each in a pull request of its own.
+    disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable", "OldTargetApi")
 }

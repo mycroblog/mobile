@@ -15,3 +15,18 @@ indent_style = tab
 trim_trailing_whitespace = false
 [*.{swift,kt,kts}]
 indent_size = 4
+
+# The Kotlin style that ktlint holds: the Android Kotlin style guide, as Android Studio formats it.
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+# The column every other file of the repository wraps at.
+max_line_length = 120
+# Trailing commas on multi-line lists, as the Kotlin coding conventions encourage.
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# Composable functions are named like types (Compose API guidelines).
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# A feature's key module keeps all its destination keys in one <Feature>Keys.kt, however many it has.
+[app/and/feature/*/api/src/main/kotlin/**.kt]
+ktlint_standard_filename = disabled

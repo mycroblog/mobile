@@ -14,9 +14,13 @@ public struct RootView: View {
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
 
+    private var tabDestinations: [TopLevelDestination] {
+        isCompact ? RootSelection.compactTabBarDestinations : TopLevelDestination.allCases
+    }
+
     public var body: some View {
         TabView(selection: tabSelection) {
-            ForEach(isCompact ? RootSelection.compactTabBarDestinations : TopLevelDestination.allCases, id: \.self) { destination in
+            ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
                         DestinationPlaceholder(destination: destination)
@@ -112,10 +116,10 @@ struct DestinationPlaceholder: View {
     }
 }
 
-private extension View {
+extension View {
     /// The iPhone Duo's inner display defaults to a vertical tab bar; ADR-0009 §2 asks for the sidebar there.
     @ViewBuilder
-    func sidebarOnTheInnerDisplay() -> some View {
+    fileprivate func sidebarOnTheInnerDisplay() -> some View {
         if #available(iOS 27.0, *) {
             defaultTabBarPlacement(.sidebar)
         } else {

@@ -46,7 +46,8 @@ final class Driver {
     /// Handles one request line; the second value is true when the runner must stop after sending the reply.
     func handle(_ line: Data) -> ([String: Any], Bool) {
         guard let request = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
-              let op = request["op"] as? String else {
+            let op = request["op"] as? String
+        else {
             return (["ok": false, "error": "the request is not a JSON object with an op"], false)
         }
         if op == "ping" || op == "quit" { return (["ok": true], op == "quit") }
@@ -92,7 +93,8 @@ final class Driver {
             let app = try running()
             guard let text = request["text"] as? String else { throw Failure("type needs text") }
             if request["label"] != nil || request["id"] != nil {
-                let field = try element(request, in: app, preferring: [.textField, .secureTextField, .searchField, .textView])
+                let field = try element(
+                    request, in: app, preferring: [.textField, .secureTextField, .searchField, .textView])
                 if !field.hasFocus { field.tap() }
                 field.typeText(text)
             } else {
@@ -130,7 +132,9 @@ final class Driver {
             }
             XCUIDevice.shared.orientation = orientation
         case "open":
-            guard let text = request["url"] as? String, let url = URL(string: text) else { throw Failure("open needs a url") }
+            guard let text = request["url"] as? String, let url = URL(string: text) else {
+                throw Failure("open needs a url")
+            }
             let before = appID.map(application)?.state
             XCUIDevice.shared.system.open(url)
             if let appID { awaitChange(of: application(appID), from: before) }
