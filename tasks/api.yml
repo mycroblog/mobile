@@ -17,7 +17,6 @@ tasks:
       - task: :android:api-generate
 
   check:
-    desc: Generate both clients into a temporary directory and fail when they differ from the committed ones
-    dir: "{{.ROOT_DIR}}"
-    cmds:
-      - scripts/check/run.sh api-drift
+    desc: Fail when a committed client differs from what shared/api/openapi.yaml generates, naming task api:generate
+    failfast: false
+    deps: [":ios:api-check", ":android:api-check"]
