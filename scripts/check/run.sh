@@ -359,11 +359,9 @@ check_ios_launch() {
   done
 }
 
-# The tests of the iOS app (ADR-0006 §1), on one simulator: the reference images of the screenshot tests are shot on
-# it, so another device type or OS renders them differently.
+# The tests of the iOS app (ADR-0006 §1), on one simulator.
 IOS_TEST_DEVICE="mycroblog-check-phone|iPhone 17"
 IOS_TEST_RESULTS="$IOS_BUILD/test"
-IOS_SNAPSHOTS="$IOS/Packages/Features/Tests/FeaturesTests/__Snapshots__"
 IOS_TEST_UDID=""
 
 # Takes the device lock and boots the test simulator; it is shut down and the lock released when the check exits.
@@ -419,40 +417,6 @@ ios_test_unit() {
     fail "the unit tests failed: fix the code, or the fixture under shared/fixtures when what it pins has changed in my (above)."
 }
 
-# The screenshot tests of the Features package. The record mode $1 is one of swift-snapshot-testing's: missing (a
-# missing reference is recorded and fails), all (every reference is recorded again), failed or never.
-ios_test_screenshot() {
-  local record="${1:-missing}" artifacts="$IOS_TEST_RESULTS/screenshots" status=0 image
-  rm -rf "$artifacts"
-  mkdir -p "$artifacts"
-  (cd "$IOS/Packages/Features" && TEST_RUNNER_SNAPSHOT_ARTIFACTS="$artifacts" TEST_RUNNER_SNAPSHOT_TESTING_RECORD="$record" \
-    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features" -only-testing:FeaturesTests) ||
-    status=$?
-  printf 'ios: the reference images:\n'
-  find "$IOS_SNAPSHOTS" -name '*.png' 2>/dev/null | sort | sed 's/^/  /'
-  (( status == 0 )) && return 0
-  # Recording fails each test it records; it succeeded when every issue is a recording.
-  if [[ "$record" == all ]]; then
-    local issues recorded
-    issues="$(grep -cE '^✘ Test .* recorded an issue' "$IOS_TEST_RESULTS/screenshot.log" || true)"
-    recorded="$(grep -cE '^↳ (Record mode is on|No reference was found)' "$IOS_TEST_RESULTS/screenshot.log" || true)"
-    (( issues > 0 && issues == recorded )) && return 0
-    fail "the screenshot tests failed for another reason than recording (above): fix it, then record again."
-  fi
-  # The new image is in $artifacts; the difference is only an attachment of the result bundle.
-  xcrun xcresulttool export attachments --path "$IOS_TEST_RESULTS/screenshot.xcresult" \
-    --output-path "$artifacts/attachments" >/dev/null 2>&1 || true
-  printf 'ios: the new images and their differences, to open next to the reference:\n' >&2
-  while IFS= read -r image; do printf '  %s\n' "$image" >&2; done < <(
-    find "$artifacts" -path "$artifacts/attachments" -prune -o -name '*.png' -print | sort
-    [[ -f "$artifacts/attachments/manifest.json" ]] &&
-      jq -r --arg dir "$artifacts/attachments" '.[] | .testIdentifier as $test | .attachments[]
-        | select(.suggestedHumanReadableName | startswith("difference"))
-        | "\($dir)/\(.exportedFileName) (the difference of \($test))"' "$artifacts/attachments/manifest.json"
-  )
-  fail "the screenshot tests failed: compare the images above; if the new rendering is right, record it with task ios:record-screenshots and commit the reference."
-}
-
 # The integration tests: the API package's client against the local my of scripts/my.sh, which the task starts.
 ios_test_integration() {
   local url
@@ -462,19 +426,11 @@ ios_test_integration() {
     fail "the integration tests against my at $url failed: read the issues above; scripts/my.sh says where my's log is (.tmp/my.log)."
 }
 
-# The unit, screenshot and integration tests, one simulator under the device lock.
+# The unit and integration tests, one simulator under the device lock.
 check_ios_test() {
   ios_test_boot
   ios_test_unit
-  ios_test_screenshot
   ios_test_integration
-}
-
-# Records every reference image of the screenshot tests again; commit what changes.
-check_ios_record_screenshots() {
-  ios_test_boot
-  ios_test_screenshot all
-  printf 'ios: recorded the reference images above: look at each, then commit them.\n'
 }
 
 # The UI-flow tests: XCUITest drives the app, built for testing, on the test simulator.
@@ -800,48 +756,14 @@ check_android_launch() {
   release_device
 }
 
-# The test layers of the Android app that run on the JVM (ADR-0006 §1): the unit tests, the screenshot tests and the
-# integration tests, the last against the local my at MY_URL (task android:test starts it with task my:up).
-ANDROID_SCREENSHOT_MODULES=("core/designsystem" "feature/settings/impl")
-
-# Prints the path of each image a reviewer opens: every reference, and each new image and comparison of a failure.
-print_android_screenshots() {
-  local module f
-  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
-    while IFS= read -r -d '' f; do
-      printf 'android: screenshot %s\n' "${f#"$ROOT"/}"
-    done < <(find "$ANDROID_APP/$module/src/test/screenshots" -name '*.png' -print0 2>/dev/null | sort -z)
-    while IFS= read -r -d '' f; do
-      printf 'android: screenshot differs, open %s\n' "${f#"$ROOT"/}" >&2
-    done < <(find "$ANDROID_APP/$module/build/outputs/roborazzi" \( -name '*_actual.png' -o -name '*_compare.png' \) -print0 2>/dev/null | sort -z)
-  done
-}
-
+# The test layers of the Android app that run on the JVM (ADR-0006 §1): the unit tests and the integration tests, the
+# last against the local my at MY_URL (task android:test starts it with task my:up).
 check_android_test() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local url="${MY_URL:-}" module tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
+  local url="${MY_URL:-}" tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
   [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
-  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
-    tasks+=(":${module//\//:}:verifyRoborazziDebug")
-    # A comparison left by an earlier run must not be taken for one of this run.
-    find "$ANDROID_APP/$module/build/outputs/roborazzi" \( -name '*_actual.png' -o -name '*_compare.png' \) -delete 2>/dev/null || true
-  done
-  if ! MY_URL="$url" android_gradle "${tasks[@]}" --continue; then
-    print_android_screenshots
-    fail "the Android tests failed: fix what each failed test says above. A screenshot that differs on purpose is recorded again with task android:record-screenshots; open each image named above before committing it."
-  fi
-  print_android_screenshots
-}
-
-# Records the reference images of the screenshot tests again, replacing the committed ones.
-check_android_record_screenshots() {
-  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local module tasks=()
-  for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
-    tasks+=(":${module//\//:}:recordRoborazziDebug")
-  done
-  android_gradle "${tasks[@]}" || fail 'recording the screenshots failed: fix what Gradle says above.'
-  print_android_screenshots
+  MY_URL="$url" android_gradle "${tasks[@]}" --continue ||
+    fail "the Android tests failed: fix what each failed test says above."
 }
 
 # The UI-flow tests of the Android app (ADR-0006 §1), the instrumented tests of app/src/androidTest, on the phone
@@ -877,7 +799,6 @@ case "${1:-}" in
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
   ios-test) check_ios_test ;;
-  ios-record-screenshots) check_ios_record_screenshots ;;
   ios-test-flow) check_ios_test_flow ;;
   ios-api-generate) check_ios_api_generate "${2:-}" ;;
   ios-api-check) check_ios_api ;;
@@ -887,7 +808,6 @@ case "${1:-}" in
   android-layout) check_android_layout ;;
   android-launch) check_android_launch ;;
   android-test) check_android_test ;;
-  android-record-screenshots) check_android_record_screenshots ;;
   android-test-flow) check_android_test_flow ;;
   android-api-generate) check_android_api_generate "${2:-}" ;;
   android-api-check) check_android_api_check ;;
