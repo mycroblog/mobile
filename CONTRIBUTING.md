@@ -32,6 +32,10 @@ The checks run on macOS on Apple silicon. Each step below is what `task check` a
    asdf install
    ```
 
+   Among them is [XcodeGen](https://github.com/yonaskolb/XcodeGen), which generates the iOS app's Xcode project
+   from `app/ios/project.yml`; the generated project is not committed. Run `task ios:generate` to make it, then open
+   `app/ios/Mycroblog.xcodeproj`.
+
 4. Sign in to GitHub for `scripts/kit`:
 
    ```bash
@@ -44,5 +48,7 @@ The checks run on macOS on Apple silicon. Each step below is what `task check` a
 task check
 ```
 
-It runs every check, each area in parallel, and names each one that fails with what to do. `task --list` lists the
+It runs every check, each area in parallel, and names each one that fails with what to do. When they pass, it
+launches each app on its simulators or emulators, one device at a time: a launch waits while
+`/private/tmp/mycroblog-device.lock` exists, which another launch holds while its device runs. `task --list` lists the
 checks of each area, such as `task docs:check`. `scripts/kit check` runs the same checks.

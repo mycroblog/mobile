@@ -1,0 +1,49 @@
+# The iOS app's project, generated with XcodeGen (`task ios:generate`); the generated Mycroblog.xcodeproj is not
+# committed. The code lives in the packages under Packages/, whose manifests enforce the dependency direction
+# (ADR-0009 §7); the app target only assembles them.
+name: Mycroblog
+options:
+  bundleIdPrefix: dev.mycroblog
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+packages:
+  Features:
+    path: Packages/Features
+  AppData:
+    path: Packages/AppData
+
+targets:
+  Mycroblog:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/Sources
+    dependencies:
+      - package: Features
+      - package: AppData
+    settings:
+      base:
+        PRODUCT_NAME: Mycroblog
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mycroblog.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "6"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT: YES
+        SWIFT_UPCOMING_FEATURE_INFER_ISOLATED_CONFORMANCES: YES
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: mycroblog
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+
+schemes:
+  Mycroblog:
+    build:
+      targets:
+        Mycroblog: all

@@ -7,6 +7,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 MARKDOWNLINT="markdownlint-cli2@0.23.2"
 KNOWLEDGE_LIMIT=4096 # bytes per file of .claude/knowledge, .claude/agents and .claude/skills (ADR-0011 §5)
+IOS="$ROOT/app/ios"
+IOS_BUILD="$IOS/build"
+IOS_SIM_DESTINATION="generic/platform=iOS Simulator"
+IOS_BUNDLE_ID="dev.mycroblog.app"
+# The simulators the launch check creates and drives, by name: "<name>|<device type>".
+IOS_LAUNCH_DEVICES=("mycroblog-check-phone|iPhone 17" "mycroblog-check-ipad|iPad Air 11-inch (M4)")
+# The lock that lets only one simulator or emulator run at a time on this Mac, shared with the Android checks.
+DEVICE_LOCK="/private/tmp/mycroblog-device.lock"
 
 fail() { printf 'check: %s\n' "$*" >&2; exit 1; }
 
@@ -65,6 +73,136 @@ check_tools() {
   }
 }
 
+check_ios_generate() {
+  need xcodegen "install XcodeGen with asdf install xcodegen"
+  (cd "$IOS" && xcodegen generate --quiet) || fail "XcodeGen could not generate app/ios/project.yml: fix what it says above."
+}
+
+# The packages under app/ios/Packages, by name.
+ios_packages() {
+  local dir
+  for dir in "$IOS"/Packages/*/; do
+    [[ -f "$dir/Package.swift" ]] && basename "$dir"
+  done
+}
+
+# Each package may import only the packages it declares as dependencies of the importing target (ADR-0009 §7); a
+# module that comes in through another dependency still compiles, so the build alone does not refuse it.
+check_ios_imports() {
+  need jq "install jq with brew install jq"
+  local failed=0 pkg target deps file module ours
+  ours=" $(ios_packages | tr '\n' ' ') "
+  for pkg in $(ios_packages); do
+    while IFS=$'\t' read -r target deps; do
+      while IFS= read -r -d '' file; do
+        while IFS= read -r module; do
+          [[ "$module" == "$target" || "$ours" != *" $module "* || " $deps " == *" $module "* ]] && continue
+          printf 'check: %s imports %s, which its target %s does not declare: depend on it in %s if ADR-0009 §7 allows that direction, or move the code.\n' \
+            "${file#"$ROOT"/}" "$module" "$target" "app/ios/Packages/$pkg/Package.swift" >&2
+          failed=1
+        done < <(sed -n -E 's/^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*).*/\6/p' "$file")
+      done < <(find "$IOS/Packages/$pkg/Sources/$target" -name '*.swift' -print0 2>/dev/null)
+    done < <(cd "$IOS/Packages/$pkg" && swift package dump-package |
+      jq -r '.targets[] | [.name, ([.dependencies[] | (.byName // .target // .product)[0]] | join(" "))] | @tsv')
+  done
+  return "$failed"
+}
+
+# Runs an xcodebuild build for the iOS Simulator and prints only its errors when it fails.
+ios_xcodebuild() {
+  local out
+  out="$(mktemp)"
+  if ! xcodebuild -destination "$IOS_SIM_DESTINATION" "$@" build >"$out" 2>&1; then
+    grep -E 'error:|BUILD FAILED' "$out" >&2 || tail -n 30 "$out" >&2
+    rm -f "$out"
+    return 1
+  fi
+  rm -f "$out"
+}
+
+# Each package builds on its own, with a build folder of its own that holds only what it declares; an import of a
+# package outside its dependencies then fails to build, in a clean build and in an incremental one alike.
+check_ios_packages() {
+  local failed=0 pkg
+  for pkg in $(ios_packages); do
+    (cd "$IOS/Packages/$pkg" && ios_xcodebuild -scheme "$pkg" -derivedDataPath "$IOS_BUILD/packages/$pkg" -quiet) || {
+      printf 'check: the package %s does not build on its own: fix the errors above; an unresolved module means it imports a package it does not declare (ADR-0009 §7).\n' "$pkg" >&2
+      failed=1
+    }
+  done
+  return "$failed"
+}
+
+check_ios_build() {
+  [[ -d "$IOS/Mycroblog.xcodeproj" ]] || check_ios_generate
+  ios_xcodebuild -project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app" -quiet ||
+    fail "the iOS app does not build: fix the errors above."
+}
+
+# The newest installed iOS simulator runtime of the selected Xcode's SDK.
+ios_sim_runtime() {
+  local sdk
+  sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+  xcrun simctl list runtimes -j | jq -r --arg v "$sdk" \
+    '[.runtimes[] | select(.platform == "iOS" and .isAvailable and .version == $v)] | sort_by(.identifier | length) | .[0].identifier // empty'
+}
+
+# The UDID of the simulator of this name, created when it does not exist.
+ios_sim_device() {
+  local name="$1" type="$2" runtime udid
+  udid="$(xcrun simctl list devices -j | jq -r --arg n "$name" '[.devices[][] | select(.name == $n and .isAvailable)][0].udid // empty')"
+  if [[ -z "$udid" ]]; then
+    runtime="$(ios_sim_runtime)"
+    [[ -n "$runtime" ]] || fail "no iOS Simulator runtime for the iOS SDK of the selected Xcode: install it with xcodebuild -downloadPlatform iOS."
+    udid="$(xcrun simctl create "$name" "$type" "$runtime")" || fail "could not create the simulator $name ($type): install the device type with Xcode, or change IOS_LAUNCH_DEVICES in ${BASH_SOURCE[0]#"$ROOT"/}."
+  fi
+  printf '%s\n' "$udid"
+}
+
+# Takes the lock that lets one simulator or emulator run at a time on this Mac, waiting while another check holds it.
+take_device_lock() {
+  local waited=0
+  until mkdir "$DEVICE_LOCK" 2>/dev/null; do
+    (( waited == 0 )) && printf 'check: waiting for %s, held by another simulator or emulator run.\n' "$DEVICE_LOCK" >&2
+    (( waited >= 1800 )) && fail "$DEVICE_LOCK has been held for 30 minutes: if no simulator or emulator is running, rmdir $DEVICE_LOCK and check again."
+    sleep 5
+    waited=$((waited + 5))
+  done
+}
+
+IOS_BOOTED=""
+ios_launch_cleanup() {
+  [[ -n "$IOS_BOOTED" ]] && xcrun simctl shutdown "$IOS_BOOTED" >/dev/null 2>&1
+  rmdir "$DEVICE_LOCK" 2>/dev/null || true
+}
+
+# Installs the app on each simulator of IOS_LAUNCH_DEVICES in turn, launches it, and confirms that its process is
+# still running a few seconds later; one simulator runs at a time and each is shut down after.
+check_ios_launch() {
+  need jq "install jq with brew install jq"
+  local app="$IOS_BUILD/app/Build/Products/Debug-iphonesimulator/Mycroblog.app" entry name type udid pid running
+  [[ -d "$app" ]] || check_ios_build
+  take_device_lock
+  trap ios_launch_cleanup EXIT
+  for entry in "${IOS_LAUNCH_DEVICES[@]}"; do
+    name="${entry%%|*}"
+    type="${entry#*|}"
+    udid="$(ios_sim_device "$name" "$type")"
+    IOS_BOOTED="$udid"
+    xcrun simctl bootstatus "$udid" -b >/dev/null || fail "the simulator $name did not boot: open Simulator and boot $name to see why."
+    xcrun simctl install "$udid" "$app" || fail "could not install the app on $name."
+    pid="$(xcrun simctl launch "$udid" "$IOS_BUNDLE_ID" | sed -n 's/.*: //p')"
+    [[ -n "$pid" ]] || fail "the app did not launch on $name: run xcrun simctl launch --console $udid $IOS_BUNDLE_ID to see why."
+    sleep 3
+    running="$(xcrun simctl spawn "$udid" launchctl list | awk -v id="UIKitApplication:$IOS_BUNDLE_ID" 'index($3, id) == 1 { print $1 }')"
+    [[ "$running" == "$pid" ]] ||
+      fail "the app launched on $name as process $pid but is not running 3 s later: see its crash log in ~/Library/Logs/DiagnosticReports, or run xcrun simctl launch --console $udid $IOS_BUNDLE_ID."
+    printf 'ios: the app runs on %s (%s) as process %s.\n' "$name" "$type" "$pid"
+    xcrun simctl shutdown "$udid" >/dev/null
+    IOS_BOOTED=""
+  done
+}
+
 # The version a tool of .tool-versions reports, in the form .tool-versions pins it, or nothing when it does not run.
 installed_version() {
   case "$1" in
@@ -72,6 +210,7 @@ installed_version() {
     shellcheck) shellcheck --version 2>/dev/null | sed -n 's/^version: //p' ;;
     java) java -version 2>&1 | sed -n 's/.*version "\([^"]*\)".*/\1/p' | head -n 1 ;;
     task) task --version 2>/dev/null | sed -e 's/^Task version: //' -e 's/^v//' -e 's/ .*//' ;;
+    xcodegen) xcodegen --version 2>/dev/null | sed -n 's/^Version: //p' ;;
     *) printf 'unknown\n' ;;
   esac
 }
@@ -126,5 +265,10 @@ case "${1:-}" in
   tools) check_tools ;;
   tool-versions) check_tool_versions ;;
   xcode-version) check_xcode_version ;;
+  ios-generate) check_ios_generate ;;
+  ios-imports) check_ios_imports ;;
+  ios-packages) check_ios_packages ;;
+  ios-build) check_ios_build ;;
+  ios-launch) check_ios_launch ;;
   *) fail "unknown check ${1:-(none)}: run the checks with task check (task --list shows them)." ;;
 esac

@@ -1,0 +1,49 @@
+# The iOS app (app/ios): its generated project, its packages and their dependency direction (ADR-0009 §7), and the
+# app on the iPhone and iPad simulators.
+version: "3"
+
+tasks:
+  check:
+    desc: Refuse an import against the dependency direction, build each package on its own, and build the app
+    platforms: [darwin]
+    failfast: false
+    deps: [imports, packages, build]
+
+  generate:
+    desc: Generate app/ios/Mycroblog.xcodeproj from app/ios/project.yml with XcodeGen
+    platforms: [darwin]
+    run: once
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-generate
+
+  imports:
+    desc: Refuse an import of a package that the importing target does not declare as its dependency
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-imports
+
+  packages:
+    desc: Build each package of app/ios/Packages on its own for the iOS Simulator, with only what it declares
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-packages
+
+  build:
+    desc: Build the app for the iOS Simulator
+    platforms: [darwin]
+    run: once
+    deps: [generate]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-build
+
+  launch:
+    desc: Launch the app on an iPhone and then an iPad simulator, confirm it runs, and shut each down (one device at a time on this Mac)
+    platforms: [darwin]
+    deps: [build]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-launch
