@@ -53,8 +53,21 @@ class Server {
             "none" -> {}
             else -> error("unknown command ${words[0]}")
         }
-        device.waitForIdle(1000)
-        return listOf(tree(), shot())
+        return listOf(settledTree(), shot())
+    }
+
+    /** Waits for idle, then until two dumps 100 ms apart are equal (at most 3 s): idle alone misses Compose transitions. */
+    private fun settledTree(): ByteArray {
+        device.waitForIdle(500)
+        var last = tree()
+        val deadline = System.currentTimeMillis() + 3000
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(100)
+            val next = tree()
+            if (next.contentEquals(last)) return next
+            last = next
+        }
+        return last
     }
 
     private fun tree(): ByteArray = ByteArrayOutputStream().also { device.dumpWindowHierarchy(it) }.toByteArray()
