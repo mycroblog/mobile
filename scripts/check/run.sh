@@ -403,9 +403,19 @@ ios_test_layer() {
   printf 'ios: the %s tests passed in %s s.\n' "$layer" "$(( SECONDS - start ))"
 }
 
-# The unit tests: the API package's tests of the generated types against shared/fixtures.
+# The unit test target of each package that has one, as <package>:<target>.
+IOS_UNIT_TESTS=(API:APITests Domain:DomainTests Features:FeaturesUnitTests)
+
+# The unit tests of each package of IOS_UNIT_TESTS, each as the layer unit-<package>: the logic, and the tests against
+# shared/fixtures.
 ios_test_unit() {
-  (cd "$IOS/Packages/API" && ios_test_layer unit -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APITests) ||
+  local failed=0 entry pkg target
+  for entry in "${IOS_UNIT_TESTS[@]}"; do
+    pkg="${entry%%:*}" target="${entry#*:}"
+    (cd "$IOS/Packages/$pkg" && ios_test_layer "unit-$pkg" -scheme "$pkg" -derivedDataPath "$IOS_BUILD/packages/$pkg" \
+      -only-testing:"$target") || failed=1
+  done
+  (( failed == 0 )) ||
     fail "the unit tests failed: fix the code, or the fixture under shared/fixtures when what it pins has changed in my (above)."
 }
 
@@ -416,7 +426,8 @@ ios_test_screenshot() {
   rm -rf "$artifacts"
   mkdir -p "$artifacts"
   (cd "$IOS/Packages/Features" && TEST_RUNNER_SNAPSHOT_ARTIFACTS="$artifacts" TEST_RUNNER_SNAPSHOT_TESTING_RECORD="$record" \
-    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features") || status=$?
+    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features" -only-testing:FeaturesTests) ||
+    status=$?
   printf 'ios: the reference images:\n'
   find "$IOS_SNAPSHOTS" -name '*.png' 2>/dev/null | sort | sed 's/^/  /'
   (( status == 0 )) && return 0

@@ -1,0 +1,22 @@
+[
+  { "input": "example.social", "origin": "https://example.social", "host": "example.social" },
+  { "input": "  example.social  ", "origin": "https://example.social", "host": "example.social" },
+  { "input": "https://example.social", "origin": "https://example.social", "host": "example.social" },
+  { "input": "https://example.social/", "origin": "https://example.social", "host": "example.social" },
+  { "input": "example.social/@alice", "origin": "https://example.social", "host": "example.social" },
+  { "input": "https://example.social/@alice/posts?page=2#top", "origin": "https://example.social", "host": "example.social" },
+  { "input": "https://alice:secret@example.social", "origin": "https://example.social", "host": "example.social" },
+  { "input": "example.social:8443", "origin": "https://example.social:8443", "host": "example.social" },
+  { "input": "https://example.social:8443/about", "origin": "https://example.social:8443", "host": "example.social" },
+  { "input": "localhost:8790", "origin": "https://localhost:8790", "host": "localhost" },
+  { "input": "http://localhost:8790", "origin": "http://localhost:8790", "host": "localhost" },
+  { "input": "http://127.0.0.1:8790", "origin": "http://127.0.0.1:8790", "host": "127.0.0.1" },
+  { "input": "http://10.0.2.2:8790/api/v1", "origin": "http://10.0.2.2:8790", "host": "10.0.2.2" },
+  { "input": "", "origin": null, "host": null },
+  { "input": "   ", "origin": null, "host": null },
+  { "input": "http://example.social", "origin": null, "host": null },
+  { "input": "http://localhost.example.social", "origin": null, "host": null },
+  { "input": "ftp://example.social", "origin": null, "host": null },
+  { "input": "https://", "origin": null, "host": null },
+  { "input": "exa mple.social", "origin": null, "host": null }
+]

@@ -78,8 +78,8 @@ must agree on is under [shared/fixtures](shared/fixtures/README.md); the unit te
 
 | Layer | What it pins | iOS | Android |
 | --- | --- | --- | --- |
-| Unit | logic, and the shared fixtures | Swift Testing, `app/ios/Packages/API/Tests/APITests` | JUnit on the JVM, `app/and/core/api/src/test` |
-| Screenshot | how a screen renders, as a reference image | swift-snapshot-testing, `app/ios/Packages/Features/Tests` | Roborazzi on Robolectric, `app/and/core/designsystem/src/test` |
+| Unit | logic, and the shared fixtures | Swift Testing, `APITests`, `DomainTests` and `FeaturesUnitTests` under `app/ios/Packages/*/Tests` | JUnit on the JVM, `app/and/core/api/src/test` |
+| Screenshot | how a screen renders, as a reference image | swift-snapshot-testing, `app/ios/Packages/Features/Tests/FeaturesTests` | Roborazzi on Robolectric, `app/and/core/designsystem/src/test` |
 | Integration | the exchange with a local my | XCTest, `app/ios/Packages/API/Tests/APIIntegrationTests` | JUnit on the JVM, `app/and/core/api/src/integrationTest` |
 | UI flow | a main flow through the running app | XCUITest, `app/ios/UITests` | Compose UI tests on `drive-phone`, `app/and/app/src/androidTest` |
 
