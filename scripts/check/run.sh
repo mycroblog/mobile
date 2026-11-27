@@ -108,6 +108,122 @@ check_ios_imports() {
   return "$failed"
 }
 
+# The hand-written Swift of the repository, committed or not, NUL-separated: everything but the generated client
+# (ADR-0003 §2) and what .gitignore leaves out, such as the build output. With an argument, only the files under it.
+IOS_SWIFT_FORMAT_CONFIG="$ROOT/.swift-format"
+ios_swift_files() {
+  local file
+  while IFS= read -r -d '' file; do
+    [[ -f "$ROOT/$file" ]] && printf '%s\0' "$file"
+  done < <(git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- "${@:-.}" |
+    grep -z '\.swift$' | grep -zv '^app/ios/Packages/API/Sources/GeneratedAPI/')
+}
+
+# swift format, from the selected Xcode's toolchain, with the configuration of .swift-format.
+ios_swift_format() {
+  need swift "install Xcode $(tr -d '[:space:]' <"$ROOT/.xcode-version") (CONTRIBUTING.md)"
+  (cd "$ROOT" && ios_swift_files | xargs -0 swift format "$@" --configuration "$IOS_SWIFT_FORMAT_CONFIG")
+}
+
+check_ios_lint() {
+  ios_swift_format lint --strict --parallel ||
+    fail 'the Swift above is not formatted as .swift-format says: run task ios:format, fix by hand what it leaves, then check again.'
+}
+
+check_ios_format() {
+  ios_swift_format format --in-place --parallel || fail 'swift format could not format the files above: fix what it says.'
+  ios_swift_format lint --strict --parallel ||
+    fail 'swift format formatted the code but cannot fix the findings above by itself: fix each by hand, then check again.'
+}
+
+# ADR-0009 §1: the screens of the app (its sources, not its tests) are laid out by the size classes and the
+# container's size, never by the device idiom, the orientation, the screen's size or a fixed width.
+# scripts/check/ios-layout.pl holds the rule and what it allows.
+check_ios_layout() {
+  need perl "perl ships with macOS"
+  local files=() file
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <(ios_swift_files app/ios/App/Sources 'app/ios/Packages/*/Sources/*')
+  (( ${#files[@]} )) || return 0
+  (cd "$ROOT" && perl "$ROOT/scripts/check/ios-layout.pl" "${files[@]}")
+}
+
+# The edges of the package graph that ADR-0009 §7 allows, as "<package>|<the packages it may declare>". The
+# extensions use only Domain and API (ADR-0007 §1), which therefore declare no UI and not AppData; only the app and
+# Features declare AppData, the store and the sync (ADR-0008 §5); the screens read the store, never the API
+# (ADR-0008 §1); DesignSystem stands on nothing. A new package needs a line here, with the ADR that allows its edges.
+IOS_PACKAGE_EDGES=(
+  "Domain|"
+  "DesignSystem|"
+  "API|Domain"
+  "AppData|Domain API"
+  "Features|Domain AppData DesignSystem"
+)
+# What a target of app/ios/project.yml other than the app and its tests may declare: an extension (ADR-0007 §1).
+IOS_EXTENSION_PACKAGES="Domain API"
+
+ios_allowed_edges() {
+  local edge
+  for edge in "${IOS_PACKAGE_EDGES[@]}"; do
+    [[ "${edge%%|*}" == "$1" ]] && { printf '%s\n' "${edge#*|}"; return 0; }
+  done
+  return 1
+}
+
+# The declared graph against the allowed edges: the local packages each Package.swift declares, and the packages each
+# target of project.yml declares. Then that the generated client stays inside the API package: its types are
+# `package` (openapi-generator-config.yaml), no product of the API package holds the target GeneratedAPI, and no
+# file outside the package imports it.
+check_ios_dependencies() {
+  need jq "install jq with brew install jq"
+  need xcodegen "install XcodeGen with asdf install xcodegen"
+  local failed=0 pkg allowed dep path target type deps file
+  for pkg in $(ios_packages); do
+    if ! allowed="$(ios_allowed_edges "$pkg")"; then
+      printf 'check: the package %s has no line in IOS_PACKAGE_EDGES of scripts/check/run.sh: add the packages it may declare, as ADR-0009 §7 allows.\n' "$pkg" >&2
+      failed=1
+      continue
+    fi
+    while IFS= read -r path; do
+      dep="$(basename "$path")"
+      if [[ "$(dirname "$path")" != "$IOS/Packages" ]]; then
+        printf 'check: app/ios/Packages/%s/Package.swift declares the local package %s outside app/ios/Packages: move it there and give it a line in IOS_PACKAGE_EDGES.\n' "$pkg" "${path#"$ROOT"/}" >&2
+        failed=1
+      elif [[ " $allowed " != *" $dep "* ]]; then
+        printf 'check: app/ios/Packages/%s/Package.swift declares %s, against the direction of ADR-0009 §7 (%s may declare: %s): remove it and move the code that needs it into a package allowed to.\n' \
+          "$pkg" "$dep" "$pkg" "${allowed:-no other package}" >&2
+        failed=1
+      fi
+    done < <(cd "$IOS/Packages/$pkg" && swift package dump-package | jq -r '.dependencies[].fileSystem[0].path // empty')
+  done
+  while IFS=$'\t' read -r target type deps; do
+    [[ "$type" == application || "$type" == bundle.* ]] && continue
+    for dep in $deps; do
+      [[ " $IOS_EXTENSION_PACKAGES " == *" $dep "* ]] && continue
+      printf 'check: the target %s (%s) of app/ios/project.yml declares the package %s: an extension uses only %s (ADR-0007 §1, ADR-0009 §7); the store and the screens are the app'"'"'s.\n' \
+        "$target" "$type" "$dep" "$IOS_EXTENSION_PACKAGES" >&2
+      failed=1
+    done
+  done < <(cd "$IOS" && xcodegen dump --type json |
+    jq -r '.targets | to_entries[] | [.key, .value.type, ([.value.dependencies[]? | .package // empty] | join(" "))] | @tsv')
+  grep -Eq '^accessModifier:[[:space:]]*package[[:space:]]*$' "$IOS_API/openapi-generator-config.yaml" || {
+    printf 'check: app/ios/Packages/API/openapi-generator-config.yaml must say accessModifier: package, so that only the API package sees the generated types (ADR-0009 §7): set it back and run task api:generate.\n' >&2
+    failed=1
+  }
+  if (cd "$IOS_API" && swift package dump-package) | jq -e '.products[] | select(.targets | index("GeneratedAPI"))' >/dev/null; then
+    printf 'check: a product of app/ios/Packages/API/Package.swift holds the target GeneratedAPI: remove it; the product API exposes hand-written types only (ADR-0009 §7).\n' >&2
+    failed=1
+  fi
+  while IFS= read -r -d '' file; do
+    [[ "$file" == app/ios/Packages/API/* ]] && continue
+    grep -Eq '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?GeneratedAPI\b' "$ROOT/$file" || continue
+    printf 'check: %s imports GeneratedAPI, which only the API package may use (ADR-0009 §7): use the hand-written types of the product API, and add one there when it lacks it.\n' "$file" >&2
+    failed=1
+  done < <(ios_swift_files app/ios)
+  return "$failed"
+}
+
 # Runs an xcodebuild build for the iOS Simulator and prints only its errors when it fails.
 ios_xcodebuild() {
   local out
@@ -680,6 +796,10 @@ case "${1:-}" in
   xcode-version) check_xcode_version ;;
   ios-generate) check_ios_generate ;;
   ios-imports) check_ios_imports ;;
+  ios-lint) check_ios_lint ;;
+  ios-format) check_ios_format ;;
+  ios-layout) check_ios_layout ;;
+  ios-dependencies) check_ios_dependencies ;;
   ios-packages) check_ios_packages ;;
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
