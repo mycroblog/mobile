@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# The workflow tool of the agents (ADR-0011 §1, §4): one entry point whose commands refuse what must not pass and say
+# the fix. Run `scripts/kit help` for the commands.
+set -euo pipefail
+
+REPO="mycroblog/mobile"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MARKDOWNLINT="markdownlint-cli2@0.23.2"
+KNOWLEDGE_LIMIT=4096 # bytes per file of .claude/knowledge, .claude/agents and .claude/skills (ADR-0011 §5)
+
+die() { printf 'kit: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/kit <command> [arguments]
+
+  issue claim <n> --plan "<one line>"
+                      Take an issue: refuses one that is closed, assigned to someone else, or that names an open
+                      issue it depends on ("Depends on #n"). Assigns it to you and comments the plan.
+  ctx <n>             Print the context of an issue: its body, its milestone, the issues it depends on and their
+                      state, and the ADRs of this repository it cites, as local paths.
+  check               Run every check that exists: the Markdown lint, no full-width parentheses in Markdown, the
+                      size limit of the agents' knowledge, skills and definitions, and the shell lint of scripts/.
+  pr open [--refs]    Run `check`, push the branch and open its pull request. The branch is <type>/<issue>-<slug>;
+                      the body says `Closes #<issue>`, or `Refs #<issue>` with --refs for a change that does not
+                      complete the issue. Running it again on a branch that has a pull request pushes and stops.
+  pr land <pr>        Queue the pull request to merge once its checks pass, follow it to the merge, then delete the
+                      local branch and report what closed.
+  help                Show this help.
+EOF
+}
+
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 is not installed: $2"; }
+
+# --- issue claim --------------------------------------------------------------------------------------------------
+
+open_dependencies() {
+  # The issues an issue body names with "Depends on #n" (and "#n, #m and #k" after it) that are still open.
+  local body="$1" n
+  for n in $(printf '%s\n' "$body" | grep -i 'depends on' | grep -o '#[0-9]\+' | tr -d '#' | sort -u); do
+    if [[ "$(gh issue view "$n" --repo "$REPO" --json state -q .state)" == "OPEN" ]]; then
+      printf '%s\n' "$n"
+    fi
+  done
+}
+
+cmd_issue_claim() {
+  local n="${1:-}" plan=""
+  [[ -n "$n" ]] || die 'issue claim needs an issue number: scripts/kit issue claim <n> --plan "<one line>"'
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --plan) plan="${2:-}"; shift 2 ;;
+      *) die "unknown argument $1" ;;
+    esac
+  done
+  [[ -n "$plan" ]] || die 'say what you will do: --plan "<one line>"'
+  local json state me assignees body blockers
+  json="$(gh issue view "$n" --repo "$REPO" --json state,assignees,body,title)"
+  state="$(jq -r .state <<<"$json")"
+  [[ "$state" == "OPEN" ]] || die "#$n is closed: take an open issue (gh issue list --repo $REPO)."
+  me="$(gh api user -q .login)"
+  assignees="$(jq -r '[.assignees[].login] | join(",")' <<<"$json")"
+  if [[ -n "$assignees" && ",$assignees," != *",$me,"* ]]; then
+    die "#$n is taken by $assignees: take another issue, or ask them."
+  fi
+  body="$(jq -r .body <<<"$json")"
+  blockers="$(open_dependencies "$body")"
+  if [[ -n "$blockers" ]]; then
+    local list="#${blockers//$'\n'/ #}"
+    die "#$n depends on open issues: $list - finish those first."
+  fi
+  gh issue edit "$n" --repo "$REPO" --add-assignee "@me" >/dev/null
+  gh issue comment "$n" --repo "$REPO" --body "Taking this: $plan" >/dev/null
+  printf 'claimed #%s: %s\n' "$n" "$(jq -r .title <<<"$json")"
+}
+
+# --- ctx ----------------------------------------------------------------------------------------------------------
+
+cmd_ctx() {
+  local n="${1:-}"
+  [[ -n "$n" ]] || die "ctx needs an issue number: scripts/kit ctx <n>"
+  local json body adr f dep
+  json="$(gh issue view "$n" --repo "$REPO" --json number,title,state,milestone,body,assignees)"
+  body="$(jq -r .body <<<"$json")"
+  printf '# #%s %s (%s, milestone: %s, assigned: %s)\n\n' \
+    "$(jq -r .number <<<"$json")" "$(jq -r .title <<<"$json")" "$(jq -r .state <<<"$json")" \
+    "$(jq -r '.milestone.title // "none"' <<<"$json")" "$(jq -r '[.assignees[].login] | join(",") | if . == "" then "nobody" else . end' <<<"$json")"
+  printf '%s\n\n' "$body"
+  printf '## Depends on\n\n'
+  for dep in $(printf '%s\n' "$body" | grep -i 'depends on' | grep -o '#[0-9]\+' | tr -d '#' | sort -u); do
+    gh issue view "$dep" --repo "$REPO" --json number,title,state -q '"- #\(.number) \(.state) \(.title)"'
+  done
+  printf '\n## ADRs of this repository it cites\n\n'
+  for adr in $(printf '%s\n' "$body" | grep -o '\(mobile \)\?ADR-[0-9]\{4\}' | grep -v '^my' | grep -o '[0-9]\{4\}' | sort -u); do
+    for f in "$ROOT"/docs/adr/"$adr"-*.md; do
+      [[ -e "$f" ]] && printf -- '- %s\n' "${f#"$ROOT"/}"
+    done
+  done
+  printf '\nServer ADRs it cites ("my ADR-NNNN") are under ../my/docs/adr/.\n'
+}
+
+# --- check --------------------------------------------------------------------------------------------------------
+
+check_markdown() {
+  need npx "install Node.js (the version in .tool-versions)"
+  (cd "$ROOT" && npx -y "$MARKDOWNLINT" "**/*.md" >/dev/null 2>"$TMPDIR_KIT/mdlint") || {
+    cat "$TMPDIR_KIT/mdlint" >&2
+    return 1
+  }
+}
+
+check_fullwidth_parens() {
+  local hits
+  hits="$(git -C "$ROOT" ls-files -z '*.md' | (cd "$ROOT" && xargs -0 grep -n -e '（' -e '）') || true)"
+  if [[ -n "$hits" ]]; then
+    printf '%s\n' "$hits" >&2
+    printf 'kit: full-width parentheses in Markdown: write ( and ) with a space before ( inside a sentence, and none before 、 or 。\n' >&2
+    return 1
+  fi
+}
+
+check_knowledge_size() {
+  local failed=0 f size
+  while IFS= read -r -d '' f; do
+    size="$(wc -c <"$f")"
+    if (( size > KNOWLEDGE_LIMIT )); then
+      printf 'kit: %s is %s bytes, over %s: split it by topic and name the new file in its index, or say it in fewer words.\n' \
+        "${f#"$ROOT"/}" "$size" "$KNOWLEDGE_LIMIT" >&2
+      failed=1
+    fi
+  done < <(find "$ROOT/.claude/knowledge" "$ROOT/.claude/agents" "$ROOT/.claude/skills" -name '*.md' -print0 2>/dev/null)
+  return "$failed"
+}
+
+check_shell() {
+  need shellcheck "install shellcheck (the version in .tool-versions)"
+  local files=("$ROOT/scripts/kit")
+  shopt -s nullglob
+  files+=("$ROOT"/scripts/*.sh)
+  shopt -u nullglob
+  shellcheck "${files[@]}"
+}
+
+cmd_check() {
+  TMPDIR_KIT="$(mktemp -d)"
+  trap 'rm -rf "$TMPDIR_KIT"' RETURN
+  local failed=0 c
+  for c in check_markdown check_fullwidth_parens check_knowledge_size check_shell; do
+    if "$c"; then printf 'ok   %s\n' "${c#check_}"; else printf 'FAIL %s\n' "${c#check_}"; failed=1; fi
+  done
+  (( failed == 0 )) || die "checks failed: fix what each FAIL above reports, then run scripts/kit check again."
+}
+
+# --- pr -----------------------------------------------------------------------------------------------------------
+
+branch_issue() {
+  local branch="$1"
+  [[ "$branch" =~ ^[a-z]+/([0-9]+)-[a-z0-9-]+$ ]] || \
+    die "the branch $branch is not <type>/<issue>-<slug> (e.g. feat/12-home-timeline): rename it with git branch -m."
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+cmd_pr_open() {
+  local refs=0
+  [[ "${1:-}" == "--refs" ]] && refs=1
+  local branch n existing subject body
+  branch="$(git -C "$ROOT" branch --show-current)"
+  [[ "$branch" != "main" ]] || die "you are on main: work on a branch <type>/<issue>-<slug>."
+  n="$(branch_issue "$branch")"
+  [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || die "the working tree has uncommitted changes: commit them first."
+  cmd_check
+  git -C "$ROOT" push -q -u origin "$branch"
+  existing="$(gh pr list --repo "$REPO" --head "$branch" --json number -q '.[0].number // empty')"
+  if [[ -n "$existing" ]]; then
+    printf 'pushed to #%s\n' "$existing"
+    return
+  fi
+  subject="$(git -C "$ROOT" log -1 --format=%s)"
+  if (( refs )); then body="Refs #$n"; else body="Closes #$n"; fi
+  body+=$'\n\n'"$(git -C "$ROOT" log --reverse --format='- %s' origin/main..HEAD)"
+  if [[ -f "$ROOT/.github/pull_request_template.md" ]]; then
+    body+=$'\n\n'"$(cat "$ROOT/.github/pull_request_template.md")"
+  fi
+  gh pr create --repo "$REPO" --head "$branch" --title "$subject" --body "$body"
+}
+
+cmd_pr_land() {
+  local pr="${1:-}"
+  [[ -n "$pr" ]] || die "pr land needs a pull request number: scripts/kit pr land <pr>"
+  local branch state
+  branch="$(gh pr view "$pr" --repo "$REPO" --json headRefName -q .headRefName)"
+  gh pr merge "$pr" --repo "$REPO" --auto --merge >/dev/null || \
+    die "#$pr cannot be queued: read gh pr view $pr --repo $REPO, fix what it says, then run this again."
+  printf 'queued #%s; following it\n' "$pr"
+  gh pr checks "$pr" --repo "$REPO" --watch --fail-fast >/dev/null 2>&1 || true
+  while :; do
+    state="$(gh pr view "$pr" --repo "$REPO" --json state -q .state)"
+    case "$state" in
+      MERGED) break ;;
+      CLOSED) die "#$pr was closed without merging." ;;
+    esac
+    if gh pr checks "$pr" --repo "$REPO" --json bucket -q '.[].bucket' 2>/dev/null | grep -q fail; then
+      die "a check of #$pr failed: gh pr checks $pr --repo $REPO shows which; fix it and push, then run this again."
+    fi
+    sleep 30
+  done
+  git -C "$ROOT" switch -q main
+  git -C "$ROOT" pull -q --ff-only
+  git -C "$ROOT" branch -q -D "$branch" 2>/dev/null || true
+  printf 'merged #%s; closed: %s\n' "$pr" \
+    "$(gh pr view "$pr" --repo "$REPO" --json closingIssuesReferences -q '[.closingIssuesReferences[] | "#\(.number)"] | join(" ")')"
+}
+
+# --- main ---------------------------------------------------------------------------------------------------------
+
+need gh "install the GitHub CLI and run gh auth login"
+need jq "install jq"
+
+case "${1:-help}" in
+  issue)
+    case "${2:-}" in
+      claim) shift 2; cmd_issue_claim "$@" ;;
+      *) die "issue takes claim: scripts/kit issue claim <n> --plan \"<one line>\"" ;;
+    esac ;;
+  ctx) shift; cmd_ctx "$@" ;;
+  check) cmd_check ;;
+  pr)
+    case "${2:-}" in
+      open) shift 2; cmd_pr_open "$@" ;;
+      land) shift 2; cmd_pr_land "$@" ;;
+      *) die "pr takes open or land: scripts/kit pr open [--refs] | scripts/kit pr land <pr>" ;;
+    esac ;;
+  help|-h|--help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

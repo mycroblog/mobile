@@ -16,6 +16,18 @@ repository as `../my`.
 | Decisions of the server | `../my/docs/adr/`, cited as `my ADR-NNNN` |
 | The client API | `../my/api/openapi.yaml` (the bundle, MIT) and `../my/docs/developers/` |
 | Tasks | GitHub issues and milestones of `mycroblog/mobile` |
+| The procedure | [/work-on-issue](.claude/skills/work-on-issue/SKILL.md), with the roles of [ADR-0011](docs/adr/0011-agent-harness.md) |
+
+## The path
+
+One path takes a change from an issue to `main`; each step is a command of `scripts/kit` that refuses what must not
+pass and says the fix (`scripts/kit help`).
+
+1. `scripts/kit issue claim <n> --plan "<one line>"`, then `scripts/kit ctx <n>` for the issue, what it depends on,
+   and the ADRs it cites.
+2. Work in a worktree, on one branch per goal, `<type>/<issue>-<slug>`.
+3. Ask `ios-platform-advisor` or `android-platform-advisor` before relying on how the OS behaves.
+4. `scripts/kit check`, then `scripts/kit pr open`, then `scripts/kit pr land <pr>`.
 
 ## Traps
 

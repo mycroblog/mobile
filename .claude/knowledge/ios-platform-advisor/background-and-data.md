@@ -1,0 +1,7 @@
+# Background and data
+
+- BGAppRefreshTask (up to 30 s, system-chosen time), BGProcessingTask, silent pushes rate-limited; none runs at a set time -> schedule posts on the server [https://developer.apple.com/documentation/backgroundtasks/choosing-background-strategies-for-your-app, checked 2026-11-27]
+- Background URLSession transfers continue while suspended or terminated by the system, but are cancelled when the user force-quits -> keep the queue's state and resume at launch [https://developer.apple.com/documentation/foundation/urlsessionconfiguration/background(withidentifier:), checked 2026-11-27]
+- BGContinuedProcessingTask: user-started work with progress, iOS 26+; the system ends tasks that show little progress [https://developer.apple.com/documentation/backgroundtasks/bgcontinuedprocessingtask, checked 2026-11-27]
+- GRDB: DatabaseObservation cannot see writes of other processes; shared databases need DatabasePool, NSFileCoordinator, busy timeouts and suspension handling against 0xDEAD10CC; the guide advises sharing plain files first [https://github.com/groue/GRDB.swift/blob/master/GRDB/Documentation.docc/DatabaseSharing.md, checked 2026-11-27]
+- SwiftData cross-process change history (HistoryDescriptor) is iOS 18+; developers report stale UI after extension writes [https://developer.apple.com/documentation/swiftdata/historydescriptor, https://developer.apple.com/forums/thread/764509, checked 2026-11-27]
