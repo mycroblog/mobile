@@ -17,6 +17,7 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `lint-and-format.md` | ktlint CLI and styles, ktlint-gradle with built-in Kotlin, Android Lint DSL, lint on JVM modules |
 | `layout-by-window.md` | Window size classes, lint checks on orientation and screen size, containerSize |
 | `network-and-text-input.md` | Ktor engines and timeout exceptions, network security config and cleartext, INTERNET, state-based TextField, UI state saving |
+| `local-network.md` | Android 17 ACCESS_LOCAL_NETWORK: scope, addresses, failure mode |
 | `ui-automation.md` | UiAutomation windows, Compose accessibility node info, shell commands from an instrumented runner |
 
 ## Rules for a line

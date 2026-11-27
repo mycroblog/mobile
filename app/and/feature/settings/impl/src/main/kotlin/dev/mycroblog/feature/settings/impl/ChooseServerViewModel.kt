@@ -1,5 +1,6 @@
 package dev.mycroblog.feature.settings.impl
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,10 +15,28 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** The state of the server screen: it looks up the address the user typed and holds the result. */
+/**
+ * The state of the server screen: it looks up the address the user typed and holds the result.
+ *
+ * The address and whether it was found invalid are kept in [savedStateHandle], so that the error comes back after
+ * the process ends. A lookup's result is not: coming back, the screen shows the address with no result, and the user
+ * looks it up again.
+ */
 @HiltViewModel
-class ChooseServerViewModel @Inject constructor(private val repository: InstanceRepository) : ViewModel() {
-    private val state = MutableStateFlow(ChooseServerUiState())
+class ChooseServerViewModel @Inject constructor(
+    private val repository: InstanceRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    private val state = MutableStateFlow(
+        ChooseServerUiState(
+            address = savedStateHandle[ADDRESS] ?: "",
+            lookup = if (savedStateHandle.get<Boolean>(INVALID) == true) {
+                ServerLookupState.InvalidAddress
+            } else {
+                ServerLookupState.Idle
+            },
+        ),
+    )
     val uiState: StateFlow<ChooseServerUiState> = state.asStateFlow()
 
     private var lookup: Job? = null
@@ -27,6 +46,8 @@ class ChooseServerViewModel @Inject constructor(private val repository: Instance
         if (text == state.value.address) return
         lookup?.cancel()
         state.value = ChooseServerUiState(address = text)
+        savedStateHandle[ADDRESS] = text
+        savedStateHandle[INVALID] = false
     }
 
     /** Looks up the address in the field, or says that it is not an address. */
@@ -36,6 +57,7 @@ class ChooseServerViewModel @Inject constructor(private val repository: Instance
         val address = ServerAddress.parse(current.address)
         if (address == null) {
             state.value = current.copy(lookup = ServerLookupState.InvalidAddress)
+            savedStateHandle[INVALID] = true
             return
         }
         start(address)
@@ -57,5 +79,10 @@ class ChooseServerViewModel @Inject constructor(private val repository: Instance
             }
             state.update { it.copy(lookup = lookup) }
         }
+    }
+
+    private companion object {
+        const val ADDRESS = "address"
+        const val INVALID = "invalid"
     }
 }

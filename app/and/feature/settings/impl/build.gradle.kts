@@ -29,6 +29,8 @@ roborazzi {
 
 dependencies {
     implementation(project(":core:data"))
+    // The server screen asks for a permission at run time (LocalNetworkPermission.kt).
+    implementation(libs.androidx.activity.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

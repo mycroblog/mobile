@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- A debug build may reach the local my over http (task my:up); a release build reaches servers only over
-         https. -->
+    <!-- From Android 17, an app that targets it reaches an address of the local network, such as the emulator's
+         10.0.2.2, only with this permission, asked at run time; the server screen asks for it before such a lookup.
+         Only a debug build declares it, for the local my (task my:up). -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <!-- A debug build may reach the local my over http; a release build reaches servers only over https. -->
     <application android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>

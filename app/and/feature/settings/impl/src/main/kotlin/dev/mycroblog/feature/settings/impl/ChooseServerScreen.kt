@@ -1,10 +1,14 @@
 package dev.mycroblog.feature.settings.impl
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -26,14 +30,25 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,7 +58,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mycroblog.core.designsystem.NavigateUpButton
 import dev.mycroblog.core.model.InstanceLookupFailure
 
-/** The server screen with its ViewModel: the address field's text is saved with the screen and sent to the ViewModel. */
+/**
+ * The server screen with its ViewModel: the address field's text is saved with the screen and sent to the ViewModel.
+ * Before a lookup of an address of the local network, it asks for [ACCESS_LOCAL_NETWORK] when the app needs it, and
+ * looks up whatever the answer.
+ */
 @Composable
 internal fun ChooseServerRoute(onUp: (() -> Unit)?, viewModel: ChooseServerViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -51,11 +70,25 @@ internal fun ChooseServerRoute(onUp: (() -> Unit)?, viewModel: ChooseServerViewM
     LaunchedEffect(address) {
         snapshotFlow { address.text.toString() }.collect(viewModel::onAddressChange)
     }
+    val context = LocalContext.current
+    var afterPermission by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val askLocalNetwork = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        afterPermission?.invoke()
+        afterPermission = null
+    }
+    val withLocalNetwork = { action: () -> Unit ->
+        if (context.needsLocalNetworkPermission(uiState.address)) {
+            afterPermission = action
+            askLocalNetwork.launch(ACCESS_LOCAL_NETWORK)
+        } else {
+            action()
+        }
+    }
     ChooseServerScreen(
         address = address,
         uiState = uiState,
-        onLookUp = viewModel::lookUp,
-        onRetry = viewModel::retry,
+        onLookUp = { withLocalNetwork(viewModel::lookUp) },
+        onRetry = { withLocalNetwork(viewModel::retry) },
         onUp = onUp,
     )
 }
@@ -83,8 +116,14 @@ fun ChooseServerScreen(
             )
         },
     ) { padding ->
+        // The form scrolls above the keyboard, so that "Look up" and the result stay reachable while typing.
         Box(
-            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).fillMaxWidth(),
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .fillMaxWidth(),
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(
@@ -92,8 +131,13 @@ fun ChooseServerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 AddressField(address, uiState, onLookUp)
-                Button(onClick = onLookUp, enabled = uiState.canLookUp, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.choose_server_look_up))
+                val lookUp = stringResource(R.string.choose_server_look_up)
+                Button(
+                    onClick = onLookUp,
+                    enabled = uiState.canLookUp,
+                    modifier = Modifier.align(Alignment.End).buttonSemantics(lookUp, uiState.canLookUp, onLookUp),
+                ) {
+                    Text(lookUp)
                 }
                 Box(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
                     LookupResult(uiState.lookup, onRetry)
@@ -165,8 +209,12 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit) {
                 color = MaterialTheme.colorScheme.error,
             )
             Text(lookup.failure.reason(), style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = onRetry) {
-                Text(stringResource(R.string.choose_server_try_again))
+            val tryAgain = stringResource(R.string.choose_server_try_again)
+            OutlinedButton(
+                onClick = onRetry,
+                modifier = Modifier.buttonSemantics(tryAgain, enabled = true, onClick = onRetry),
+            ) {
+                Text(tryAgain)
             }
         }
     }
@@ -178,6 +226,21 @@ private fun InstanceLookupFailure.reason(): String = when (this) {
     InstanceLookupFailure.NotMycroblog -> stringResource(R.string.choose_server_not_mycroblog)
     is InstanceLookupFailure.Problem -> title
 }
+
+/**
+ * One accessibility node for a button with a text [label]: its role, label, state and action on the button itself,
+ * where the button's text would otherwise be a child node and the button a nameless view.
+ */
+private fun Modifier.buttonSemantics(label: String, enabled: Boolean, onClick: () -> Unit): Modifier =
+    clearAndSetSemantics {
+        role = Role.Button
+        text = AnnotatedString(label)
+        if (!enabled) disabled()
+        onClick {
+            onClick()
+            true
+        }
+    }
 
 /** The widest the form grows, so that its line stays readable in a wide window. */
 private val ContentMaxWidth = 600.dp

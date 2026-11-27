@@ -1,5 +1,6 @@
 package dev.mycroblog.feature.settings.impl
 
+import androidx.lifecycle.SavedStateHandle
 import dev.mycroblog.core.data.InstanceRepository
 import dev.mycroblog.core.model.Instance
 import dev.mycroblog.core.model.InstanceLookupFailure
@@ -69,7 +70,7 @@ class ChooseServerViewModelTest {
     @After
     fun resetMain() = Dispatchers.resetMain()
 
-    private fun viewModel(server: Server) = ChooseServerViewModel(InstanceRepository(server.engine))
+    private fun viewModel(server: Server) = ChooseServerViewModel(InstanceRepository(server.engine), SavedStateHandle())
 
     /** The lookup once it is no longer under way, which the engine's thread decides. */
     private suspend fun ChooseServerViewModel.settled(): ServerLookupState =
