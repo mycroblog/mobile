@@ -1,13 +1,16 @@
 # The gate of main (ADR-0006 §3): the merge queue merges a pull request only when every job here passes. Each job runs
 # the same tasks a developer runs (Taskfile.yml); together they run what `task check`, `task check:devices` and
 # `task check:flow` run, every area and every device kind (ADR-0012 §3).
+#
+# The jobs of the apps run only in the merge queue: there they check the very commit that main gets, and before it the
+# author's `scripts/kit check` checked what the branch changes. Run on every push of a pull request, and again on main,
+# they would spend an hour of macOS runner on the same tree each time (ADR-0012 §1). On a pull request they are
+# skipped, which a required check counts as passed; only the documents and the harness are checked there.
 name: check
 
 on:
   pull_request:
   merge_group:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -34,6 +37,7 @@ jobs:
 
   ios:
     name: ios
+    if: github.event_name == 'merge_group'
     runs-on: xcode-27
     timeout-minutes: 90
     steps:
@@ -62,6 +66,7 @@ jobs:
 
   ios-flow:
     name: ios-flow
+    if: github.event_name == 'merge_group'
     runs-on: xcode-27
     timeout-minutes: 90
     steps:
@@ -86,6 +91,7 @@ jobs:
 
   android:
     name: android
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -128,6 +134,7 @@ jobs:
 
   android-flow:
     name: android-flow
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
