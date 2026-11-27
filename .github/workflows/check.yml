@@ -97,6 +97,11 @@ jobs:
         with:
           tools: nodejs shellcheck java task
           my: "true"
+      - name: Cache the pinned tool jars (Fabrikt, ktlint)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: mobile/app/and/build/tools
+          key: android-tools-${{ hashFiles('mobile/scripts/check/run.sh') }}
       - name: Install the Android SDK packages and enable the emulator's KVM
         uses: ./mobile/.github/actions/android
       - name: task toolchain:check api:check android:check android:test

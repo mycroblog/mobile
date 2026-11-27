@@ -532,6 +532,8 @@ check_xcode_version() {
 
 # The Android app (app/and) and the SDK packages it is built and launched with (CONTRIBUTING.md).
 ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+# Where avdmanager writes the AVDs and the emulator reads them: newer tools follow XDG_CONFIG_HOME, the emulator does not.
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
 ANDROID_APP="$ROOT/app/and"
 ANDROID_PACKAGE="dev.mycroblog.app"
 ANDROID_SDK_PACKAGES=("platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "cmdline-tools;latest")
@@ -573,7 +575,7 @@ need_pinned_jar() {
   need curl "install curl"
   if [[ ! -f "$jar" ]]; then
     mkdir -p "$(dirname "$jar")"
-    curl -fsSL -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
     mv "$jar.part" "$jar"
   fi
   [[ "$(shasum -a 256 "$jar" | cut -d ' ' -f 1)" == "$sha256" ]] || {
