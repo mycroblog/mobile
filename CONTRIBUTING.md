@@ -68,7 +68,7 @@ task check
 
 It runs every check, each area in parallel, and names each one that fails with what to do. When they pass, it
 launches each app on its simulators or emulators, one device at a time: a launch waits while
-`/private/tmp/mycroblog-device.lock` exists, which another launch holds while its device runs. `task --list` lists the
+`/tmp/mycroblog-device.lock` exists, which another launch holds while its device runs. `task --list` lists the
 checks of each area, such as `task docs:check`. `scripts/kit check` runs the same checks.
 
 ## Run the tests

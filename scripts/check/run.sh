@@ -14,7 +14,7 @@ IOS_BUNDLE_ID="dev.mycroblog.app"
 # The simulators the launch check creates and drives, by name: "<name>|<device type>".
 IOS_LAUNCH_DEVICES=("mycroblog-check-phone|iPhone 17" "mycroblog-check-ipad|iPad Air 11-inch (M4)")
 # The lock that lets only one simulator or emulator run at a time on this Mac, shared with the Android checks.
-DEVICE_LOCK="/private/tmp/mycroblog-device.lock"
+DEVICE_LOCK="/tmp/mycroblog-device.lock" # /private/tmp on a Mac
 
 fail() { printf 'check: %s\n' "$*" >&2; exit 1; }
 
@@ -382,6 +382,8 @@ check_tool_versions() {
   local failed=0 tool pinned want have
   while read -r tool pinned _; do
     [[ -z "$tool" || "$tool" == \#* ]] && continue
+    # XcodeGen builds the iOS project, which exists only on a Mac.
+    [[ "$tool" == xcodegen && "$(uname -s)" != Darwin ]] && continue
     want="$(comparable_version "$tool" "$pinned")"
     have="$(installed_version "$tool" || true)"
     if [[ "$have" == "unknown" ]]; then
@@ -417,7 +419,14 @@ ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 ANDROID_APP="$ROOT/app/and"
 ANDROID_PACKAGE="dev.mycroblog.app"
 ANDROID_SDK_PACKAGES=("platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "cmdline-tools;latest")
-ANDROID_IMAGE="system-images;android-37.0;google_apis_playstore;arm64-v8a"
+# The emulator image of this machine's architecture: arm64 on Apple silicon, x86_64 on a Linux CI runner.
+case "$(uname -m)" in
+  arm64 | aarch64) ANDROID_ABI="arm64-v8a" ;;
+  *) ANDROID_ABI="x86_64" ;;
+esac
+ANDROID_IMAGE="system-images;android-37.0;google_apis_playstore;$ANDROID_ABI"
+# The emulator's renderer: the Mac's GPU, or ANDROID_EMULATOR_GPU=swiftshader_indirect where there is none (CI).
+ANDROID_EMULATOR_GPU="${ANDROID_EMULATOR_GPU:-host}"
 ANDROID_CONSOLE_PORT=5620
 
 need_android_sdk() {
@@ -564,7 +573,7 @@ boot_android() {
   fi
   log="$(mktemp)"
   "$ANDROID_SDK/emulator/emulator" -avd "$avd" -port "$ANDROID_CONSOLE_PORT" -no-window -no-snapshot-save -no-boot-anim \
-    -no-audio -gpu host >"$log" 2>&1 &
+    -no-audio -gpu "$ANDROID_EMULATOR_GPU" >"$log" 2>&1 &
   EMULATOR_PID=$!
   "$adb" start-server >/dev/null 2>&1
   deadline=$(( SECONDS + 300 ))

@@ -1,0 +1,143 @@
+# The gate of main (ADR-0006 §3): the merge queue merges a pull request only when every job here passes. Each job runs
+# the same tasks a developer runs (Taskfile.yml); together they run what `task check` and `task check:flow` run.
+name: check
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck task
+      - name: task docs:check harness:check
+        working-directory: mobile
+        run: task docs:check harness:check
+
+  ios:
+    name: ios
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - name: Select the Xcode of .xcode-version
+        run: sudo xcode-select -s "/Applications/Xcode_$(tr -d '[:space:]' < mobile/.xcode-version).app"
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck java task xcodegen
+          my: "true"
+      - name: task toolchain:check api:check ios:check
+        working-directory: mobile
+        run: task toolchain:check api:check ios:check
+      - name: task ios:launch ios:test
+        working-directory: mobile
+        run: task ios:launch ios:test
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-test-results
+          path: mobile/app/ios/build/test/
+          if-no-files-found: ignore
+
+  ios-flow:
+    name: ios-flow
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - name: Select the Xcode of .xcode-version
+        run: sudo xcode-select -s "/Applications/Xcode_$(tr -d '[:space:]' < mobile/.xcode-version).app"
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: task xcodegen
+      - name: task ios:test-flow
+        working-directory: mobile
+        run: task ios:test-flow
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-flow-results
+          path: mobile/app/ios/build/test/
+          if-no-files-found: ignore
+
+  android:
+    name: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: nodejs shellcheck java task
+          my: "true"
+      - name: Install the Android SDK packages and enable the emulator's KVM
+        uses: ./mobile/.github/actions/android
+      - name: task toolchain:check api:check android:check android:test
+        working-directory: mobile
+        run: task toolchain:check api:check android:check android:test
+      - name: task android:launch
+        working-directory: mobile
+        run: task android:launch
+      - name: Keep the test reports and screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-test-results
+          path: |
+            mobile/app/and/*/build/reports/
+            mobile/app/and/*/*/build/reports/
+            mobile/app/and/*/*/build/outputs/roborazzi/
+          if-no-files-found: ignore
+
+  android-flow:
+    name: android-flow
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: mobile
+      - uses: ./mobile/.github/actions/setup
+        with:
+          tools: java task
+      - name: Install the Android SDK packages and enable the emulator's KVM
+        uses: ./mobile/.github/actions/android
+      - name: task android:test-flow
+        working-directory: mobile
+        run: task android:test-flow
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-flow-results
+          path: mobile/app/and/app/build/reports/
+          if-no-files-found: ignore
