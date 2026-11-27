@@ -8,7 +8,7 @@ import { android } from './android.mjs';
 
 const SCREEN = {
   role: 'Screen',
-  children: [{ role: 'Application', label: 'Demo', children: [{ role: 'Button', label: 'Compose', frame: [10, 20, 30, 40] }] }],
+  children: [{ role: 'Application', label: 'Demo', states: ['focused'], children: [{ role: 'Button', label: 'Compose', frame: [10, 20, 30, 40] }] }],
 };
 const PNG = Buffer.from('png').toString('base64');
 
@@ -51,6 +51,7 @@ const androidSh = (cmd, args) => {
   const line = args.join(' ');
   if (line.includes('resolve-activity')) return 'priority=0\ndev.demo/.MainActivity\n';
   if (line.includes('pidof')) return '321\n';
+  if (line.includes('mCurrentFocus')) return androidSh.focus.shift() ?? '';
   return '';
 };
 
@@ -79,7 +80,7 @@ test('a step prints the tree and saves the screenshot', async () => {
   const f = await run(['ios', 'tap', 'Compose'], { state: IOS });
   assert.equal(f.code, 0);
   assert.deepEqual(f.calls.send, [{ op: 'tap', label: 'Compose', app: 'dev.demo' }]);
-  assert.match(f.out, /^Screen\n {2}Application "Demo"\n {4}Button "Compose" @10,20,30,40\nscreenshot: \/state\/shots\/.+-ios-tap\.png\n$/);
+  assert.match(f.out, /^Screen\n {2}Application "Demo" focused\n {4}Button "Compose" @10,20,30,40\nscreenshot: \/state\/shots\/.+-ios-tap\.png\n$/);
   assert.equal(Object.values(f.calls.files)[0].toString(), 'png');
 });
 
@@ -161,10 +162,10 @@ const ANDROID_CASES = [
     "shell am start -W -a android.intent.action.CHOOSER --eu android.intent.extra.INTENT 'intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT=it%20is%20good;end'"],
     [{ op: 'tap', label: 'Demo' }]],
   [['notify', 'Hi', 'there'], AND, [
-    'shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER \'dev.demo\'',
-    "shell cmd notification post -S bigtext -t 'Hi' -c activity '-n dev.demo/.MainActivity' drive 'there'",
+    "shell cmd notification post -S bigtext -t 'Hi' drive 'there'",
     'shell cmd statusbar expand-notifications'], [{ op: 'look' }]],
-  [['fold'], AND_FOLD, ['emu fold', 'shell wm dismiss-keyguard'], [{ op: 'look' }]],
+  [['fold'], AND_FOLD, ['emu fold', 'shell dumpsys window | grep mCurrentFocus', 'shell wm dismiss-keyguard',
+    'shell dumpsys window | grep mCurrentFocus'], [{ op: 'look' }]],
   [['unfold'], AND_FOLD, ['emu unfold'], [{ op: 'look' }]],
   [['half-open'], AND_FOLD, ['emu posture 2'], [{ op: 'look' }]],
   [['rotate', 'landscape-right'], AND, ['shell cmd window user-rotation lock 3'], [{ op: 'look' }]],
@@ -199,6 +200,7 @@ test('each change on iOS runs its simctl, idb or runner step', async () => {
 
 test('each change on Android runs its adb or runner step', async () => {
   for (const [argv, state, commands, requests] of ANDROID_CASES) {
+    androidSh.focus = ['mCurrentFocus=Window{1 u0 NotificationShade}', 'mCurrentFocus=Window{2 u0 dev.demo/.Main}'];
     const f = await run(['android', ...argv], { state, sh: androidSh });
     assert.equal(f.code, 0, `${argv.join(' ')}: ${f.err}`);
     assert.deepEqual(f.calls.sh, commands.map((c) => `/sdk/platform-tools/adb -s emulator-5600 ${c}`), argv.join(' '));

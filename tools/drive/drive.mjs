@@ -27,7 +27,7 @@ export const STEPS = [
   ['operation', 'back', '', 'Go back: the system back on Android, the navigation bar back button (else an edge swipe) on iOS.'],
   ['input', 'open', '<url>', 'Open a link (custom scheme or https) as the system would.'],
   ['input', 'share', '<text or url> --to <app name>', 'Share into an app through the system share sheet.'],
-  ['input', 'notify', '<title> <body> [--data <key>=<value>]...', 'Deliver a notification (iOS: a simulated push to the app; Android: a notification, with the shade opened).'],
+  ['input', 'notify', '<title> <body> [--data <key>=<value>]...', 'Deliver a notification. iOS: a simulated push to the app, which opens it when tapped; --data adds payload keys. Android: a notification posted from adb, with the shade opened; it opens nothing when tapped.'],
   ['size', 'fold', '', 'Fold the device (iPhone Duo: close the hinge; Android: a foldable AVD).'],
   ['size', 'unfold', '', 'Unfold the device fully.'],
   ['size', 'half-open', '', 'Open the hinge half way (tabletop posture).'],

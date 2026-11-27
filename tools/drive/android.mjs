@@ -1,7 +1,7 @@
 // The Android Emulator side of the app-driving tool: adb and the emulator console for the device, the UI Automator
 // runner of tools/drive/android for the screen (ADR-0011 §3).
 import path from 'node:path';
-import { StepError, need, oneOf, parseData, parseSize, runnerOf, target } from './common.mjs';
+import { StepError, need, oneOf, parseSize, runnerOf, target } from './common.mjs';
 
 const DEVICES = { phone: 'pixel_9', fold: 'pixel_9_pro_fold', resizable: 'resizable', tablet: 'pixel_tablet' };
 const ROTATIONS = { portrait: 0, 'landscape-left': 1, 'upside-down': 2, 'landscape-right': 3 };
@@ -21,7 +21,17 @@ function context(deps) {
   const serial = () => runner.state().device;
   const adb = (...args) => deps.sh(adbPath, ['-s', serial(), ...args]);
   const shell = (...words) => adb('shell', words.join(' '));
-  const look = () => runner.call('look');
+  // After a change of the device (fold, rotation, size, appearance) the display may be blank for a moment, and a blank
+  // screen is stable too: look again until a window has the focus, for up to about 5 s.
+  const look = async () => {
+    let reply;
+    for (let i = 0; i < 10; i++) {
+      reply = await runner.call('look');
+      if ((reply.tree?.children ?? []).some((w) => (w.states ?? []).includes('focused'))) return reply;
+      deps.sh('sleep', ['0.5']);
+    }
+    return reply;
+  };
 
   const running = (app) => {
     try {
@@ -48,6 +58,15 @@ function context(deps) {
   }
 
   return { deps, runner, sdk, adbPath, port, consolePort, serial, adb, shell, look, running, requireRunning, launcherActivity };
+}
+
+// The JDK of .tool-versions, through asdf when it is there; else whatever JAVA_HOME already says.
+function javaHome(deps, cwd) {
+  try {
+    return deps.sh('asdf', ['where', 'java'], { cwd }).trim();
+  } catch {
+    return deps.env.JAVA_HOME;
+  }
 }
 
 function latestImage(deps, sdk) {
@@ -78,7 +97,7 @@ const steps = {
     // The resizable AVD changes size only through its window, so it keeps one.
     const window = kind === 'resizable' ? [] : ['-no-window'];
     const emulatorPid = deps.spawnDetached(path.join(sdk, 'emulator/emulator'),
-      ['-avd', avd, '-port', String(ctx.consolePort), '-no-snapshot-save', '-no-boot-anim', ...window],
+      ['-avd', avd, '-port', String(ctx.consolePort), '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host', ...window],
       { log: path.join(deps.stateDir, 'android-emulator.log') });
     deps.writeState('android', { kind, device, port: ctx.port, emulatorPid, runnerPid: null, app: null });
     ctx.adb('wait-for-device');
@@ -89,7 +108,7 @@ const steps = {
     }
     const project = path.join(deps.root, 'tools/drive/android');
     deps.sh(path.join(project, 'gradlew'), ['-q', ':runner:assembleDebug', ':runner:assembleDebugAndroidTest'],
-      { cwd: project, env: { ...deps.env, ANDROID_HOME: sdk } });
+      { cwd: project, env: { ...deps.env, ANDROID_HOME: sdk, JAVA_HOME: javaHome(deps, project) } });
     const apks = path.join(project, 'runner/build/outputs/apk');
     ctx.adb('install', '-r', '-t', path.join(apks, 'debug/runner-debug.apk'));
     ctx.adb('install', '-r', '-t', path.join(apks, 'androidTest/debug/runner-debug-androidTest.apk'));
@@ -175,12 +194,12 @@ const steps = {
 
   async notify(ctx, [title, body], flags) {
     need(title, 'a title', 'notify');
-    const data = parseData(flags);
-    const extras = Object.entries(data).flatMap(([k, v]) => ['--es', quote(k), quote(v)]);
-    const app = ctx.runner.state().app;
-    // Tapping the notification opens the app with the data as extras, as a push's notification would.
-    const open = app ? ['-c', 'activity', quote(`-n ${ctx.launcherActivity(app)} ${extras.join(' ')}`.trim())] : [];
-    ctx.shell('cmd', 'notification', 'post', '-S', 'bigtext', '-t', quote(title), ...open, 'drive', quote(body ?? title));
+    if (flags.data !== undefined) {
+      throw new StepError('notify --data works on iOS only: an Android notification posted from adb cannot open the app');
+    }
+    // The shell may not give a notification an intent to open (getIntentSender is refused to its uid), so this one
+    // shows in the shade and opens nothing; an app's own push comes through its relay (ADR-0005).
+    ctx.shell('cmd', 'notification', 'post', '-S', 'bigtext', '-t', quote(title), 'drive', quote(body ?? title));
     ctx.shell('cmd', 'statusbar', 'expand-notifications');
     return ctx.look();
   },
@@ -188,8 +207,11 @@ const steps = {
   async fold(ctx) {
     requireFold(ctx, 'fold');
     ctx.adb('emu', 'fold');
-    // Folding locks the screen on this image; the user's app shows again on the cover screen.
+    // Folding locks the screen on this image a moment later; once the lock screen (the notification shade's window)
+    // has the focus, dismissing it shows the user's app again on the cover screen.
+    waitForFocus(ctx, (f) => f.includes('NotificationShade'));
     ctx.shell('wm', 'dismiss-keyguard');
+    waitForFocus(ctx, (f) => !f.includes('NotificationShade'));
     return ctx.look();
   },
 
@@ -253,6 +275,14 @@ const steps = {
     return ctx.runner.call('look', {}, { withApp: false });
   },
 };
+
+// Polls the focused window for up to 3 s until it matches.
+function waitForFocus(ctx, matches) {
+  for (let i = 0; i < 30; i++) {
+    if (matches(ctx.shell('dumpsys', 'window', '|', 'grep', 'mCurrentFocus'))) return;
+    ctx.deps.sh('sleep', ['0.1']);
+  }
+}
 
 function requireFold(ctx, step) {
   if (ctx.runner.state().kind !== 'fold') {
