@@ -1,5 +1,5 @@
 /// What the root of a scene shows: a top-level destination, or, in compact width, the list of the destinations that
-/// do not fit the tab bar. A scene saves it and restores it when the system relaunches the app.
+/// do not fit the tab bar. RootNavigation holds it, with the destination open in the overflow list's tab.
 enum RootSelection: Hashable, Sendable, RawRepresentable {
     case destination(TopLevelDestination)
     case overflowList

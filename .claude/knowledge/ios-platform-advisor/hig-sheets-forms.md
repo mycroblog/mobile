@@ -1,0 +1,8 @@
+# HIG: sheets, text fields, forms
+
+- Sheet: Cancel (or Close) leading dismisses without saving, Done trailing completes; a Done must be paired with Cancel or Back; avoid all three; single-view sheet: Cancel leading, Done trailing [https://developer.apple.com/design/human-interface-guidelines/sheets, checked 2026-11-27]
+- Sheets support the large detent automatically; medium is optional (progressive disclosure); compose-like sheets stay full height; a resizable sheet should show a grabber; support swipe to dismiss, with an action sheet if unsaved changes; one sheet at a time [https://developer.apple.com/design/human-interface-guidelines/sheets, checked 2026-11-27]
+- Text fields: placeholder disappears on typing, so add a label; show the keyboard type matching the content (URL); validate when it makes sense; clear button at trailing end; prefer a list of choices over text entry [https://developer.apple.com/design/human-interface-guidelines/text-fields, checked 2026-11-27]
+- Entering data: validate dynamically and give feedback as soon as a problem is detected; a Next/Continue button is available only after required data is entered [https://developer.apple.com/design/human-interface-guidelines/entering-data, checked 2026-11-27]
+- SubmitLabel cases: continue, done, go, join, next, return, route, search, send [https://developer.apple.com/documentation/swiftui/submitlabel, checked 2026-11-27]
+- `AccessibilityNotification.Announcement` posts a string for assistive apps, with optional speech priority [https://developer.apple.com/documentation/accessibility/accessibilitynotification/announcement, checked 2026-11-27]

@@ -40,16 +40,23 @@ let package = Package(
             ],
             swiftSettings: isolation
         ),
-        // The unit tests (Swift Testing): the generated types against the shared fixtures (ADR-0002 §2).
+        // The unit tests (Swift Testing): the generated types against the shared fixtures (ADR-0002 §2), and the
+        // client against a stub transport.
         .testTarget(
             name: "APITests",
-            dependencies: ["API", "GeneratedAPI"],
+            dependencies: [
+                "API",
+                "Domain",
+                "GeneratedAPI",
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "HTTPTypes", package: "swift-http-types"),
+            ],
             swiftSettings: isolation
         ),
         // The integration tests (XCTest) against a local my, whose origin `task ios:test` passes in MY_URL.
         .testTarget(
             name: "APIIntegrationTests",
-            dependencies: ["API", "GeneratedAPI"],
+            dependencies: ["API", "Domain", "GeneratedAPI"],
             swiftSettings: isolation
         ),
     ]

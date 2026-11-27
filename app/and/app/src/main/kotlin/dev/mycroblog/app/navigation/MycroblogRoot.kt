@@ -5,12 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -77,7 +80,7 @@ fun MycroblogRoot() {
         messagesEntries(state::navigateUp)
         profileEntries(state::navigateUp)
         bookmarksEntries(state::navigateUp)
-        settingsEntries(state::navigateUp)
+        settingsEntries(state::navigateUp, state::navigate)
         entry<MoreKey> { MoreScreen(destinations = state.moreItems, onSelect = state::select) }
     }
     // Each back stack keeps the saved state and the ViewModels of its entries while another one is shown.
@@ -167,7 +170,10 @@ private fun RootNavigationRail(state: RootNavigationState) {
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .windowInsetsPadding(NavigationRailDefaults.windowInsets)
+                // Above the keyboard too, so that the items it would cover can still be scrolled into view.
+                .windowInsetsPadding(
+                    NavigationRailDefaults.windowInsets.union(WindowInsets.ime.only(WindowInsetsSides.Bottom)),
+                )
                 .widthIn(min = RailWidth)
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 4.dp)
