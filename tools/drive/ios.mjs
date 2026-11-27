@@ -53,7 +53,14 @@ function context(deps) {
       .sort((a, b) => a.version.localeCompare(b.version, undefined, { numeric: true }))
       .pop();
     if (!runtime) throw new StepError(`no iOS runtime has the device type "${DEVICES[kind]}": install one in Xcode`);
-    return simctl('create', name, DEVICES[kind], runtime.identifier).trim();
+    const udid = simctl('create', name, DEVICES[kind], runtime.identifier).trim();
+    // A new simulator takes the Mac's language; the runner finds system UI (the share sheet) by its English labels.
+    simctl('boot', udid);
+    simctl('bootstatus', udid, '-b');
+    simctl('spawn', udid, 'defaults', 'write', '-g', 'AppleLanguages', '-array', 'en');
+    simctl('spawn', udid, 'defaults', 'write', '-g', 'AppleLocale', '-string', 'en_US');
+    simctl('shutdown', udid);
+    return udid;
   }
 
   return { deps, runner, port, simctl, udid, look, pidOf, requireRunning, device };
@@ -77,17 +84,25 @@ const steps = {
     const project = path.join(deps.root, 'tools/drive/ios/DriveRunner.xcodeproj');
     const derived = path.join(deps.stateDir, 'ios-build');
     deps.sh('xcodebuild', ['build-for-testing', '-project', project, '-scheme', 'DriveRunner',
-      '-destination', `id=${udid}`, '-derivedDataPath', derived, '-quiet'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      '-destination', 'generic/platform=iOS Simulator', '-derivedDataPath', derived, '-quiet']);
     const products = path.join(derived, 'Build/Products');
     const xctestrun = deps.sh('find', [products, '-name', '*.xctestrun', '-maxdepth', '1']).trim().split('\n')[0];
     if (!xctestrun) throw new StepError(`the runner built, but no .xctestrun is in ${products}`);
-    const runnerPid = deps.spawnDetached('xcodebuild', ['test-without-building', '-xctestrun', xctestrun,
+    const startRunner = () => deps.spawnDetached('xcodebuild', ['test-without-building', '-xctestrun', xctestrun,
       '-destination', `id=${udid}`, '-only-testing:DriveRunner/RunnerTests/testServe'], {
       log: path.join(deps.stateDir, 'ios-runner.log'),
       env: { TEST_RUNNER_DRIVE_PORT: String(ctx.port) },
     });
+    let runnerPid = startRunner();
     deps.writeState('ios', { kind, device: udid, port: ctx.port, runnerPid, app: null });
-    await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+    try {
+      await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+    } catch {
+      // A runner started on a freshly booted simulator sometimes crashes while preparing; a second start works.
+      runnerPid = startRunner();
+      deps.writeState('ios', { kind, device: udid, port: ctx.port, runnerPid, app: null });
+      await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+    }
     return ctx.runner.call('look');
   },
 
@@ -155,8 +170,21 @@ const steps = {
     const payload = { aps: { alert: { title, body: body ?? '' }, sound: 'default' }, ...parseData(flags) };
     const file = path.join(ctx.deps.stateDir, 'push.json');
     ctx.deps.writeFile(file, JSON.stringify(payload));
-    ctx.simctl('push', ctx.udid(), ctx.runner.app(), file);
-    return ctx.look();
+    try {
+      ctx.simctl('push', ctx.udid(), ctx.runner.app(), file);
+    } catch (e) {
+      if (!/not authorized/.test(String(e.stderr))) throw e;
+      const reply = await ctx.runner.call('look', {}, { withApp: false });
+      throw new StepError(`${ctx.runner.app()} may not show notifications yet: let it ask, tap Allow, then notify again`, reply);
+    }
+    // The banner comes a moment after the push, and the screen before it looks settled: look until it is there.
+    let reply;
+    for (let i = 0; i < 10; i++) {
+      reply = await ctx.look();
+      if (JSON.stringify(reply.tree).includes(title)) return reply;
+      ctx.deps.sh('sleep', ['0.5']);
+    }
+    return reply;
   },
 
   fold: (ctx) => hinge(ctx, 'fold'),

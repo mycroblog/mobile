@@ -44,7 +44,13 @@ export function parseData(flags) {
   for (const kv of [].concat(flags.data ?? [])) {
     const i = String(kv).indexOf('=');
     if (i < 1) throw new StepError(`--data takes <key>=<value>, not "${kv}"`);
-    data[kv.slice(0, i)] = kv.slice(i + 1);
+    // A value that reads as JSON (7, true, {"a":1}) is sent as that value, anything else as a string.
+    const raw = kv.slice(i + 1);
+    try {
+      data[kv.slice(0, i)] = JSON.parse(raw);
+    } catch {
+      data[kv.slice(0, i)] = raw;
+    }
   }
   return data;
 }

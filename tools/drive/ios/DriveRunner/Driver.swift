@@ -10,12 +10,14 @@ final class Driver {
 
     static let springboardID = "com.apple.springboard"
     static let safariID = "com.apple.mobilesafari"
+    static let hostID = "dev.mycroblog.drive.host"
 
     let springboard = XCUIApplication(bundleIdentifier: springboardID)
     private let issues: () -> [String]
     private var apps: [String: XCUIApplication] = [:]
-    /// Apps other than the one under test that may be in front: Safari for `share`, and every app a request named.
-    private var known: [String] = [safariID]
+    /// Apps other than the one under test that may be in front: this runner's host, which `share` shares from,
+    /// Safari, and every app a request named.
+    private var known: [String] = [hostID, safariID]
     lazy var screen = Screen(driver: self)
 
     init(issues: @escaping () -> [String]) {
@@ -182,11 +184,12 @@ final class Driver {
         let places = [app, springboard] + others(than: id(of: app)).filter { $0 !== springboard }
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            for place in places where place === app || place === springboard || place.state == .runningForeground {
+            // An app in the background is not searched: querying it blocks until XCUITest gives up on it.
+            for place in places where place === springboard || place.state == .runningForeground {
                 for type in types + [.any] {
                     let match = place.descendants(matching: type).matching(predicate).firstMatch
                     // Springboard keeps the home screen under the app in front: only what can be hit there counts.
-                    if match.exists, place === app || match.isHittable { return match }
+                    if match.exists, place !== springboard || match.isHittable { return match }
                 }
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -216,11 +219,13 @@ final class Driver {
     }
 
     private func share(_ request: [String: Any]) throws {
-        guard let text = request["url"] as? String, let url = URL(string: text) else { throw Failure("share needs a url") }
+        guard let text = request["url"] as? String, !text.isEmpty else { throw Failure("share needs a url or text") }
         guard let target = request["target"] as? String else { throw Failure("share needs a target") }
-        let safari = application(Self.safariID)
-        XCUIDevice.shared.system.open(url)
-        guard safari.wait(for: .runningForeground, timeout: 10) else { throw Failure("Safari did not open \(text)") }
-        try Share(driver: self, safari: safari).pick(target)
+        // The host app opens the system share sheet for the text: the same sheet any app shows, whatever language or
+        // state Safari is in.
+        let host = application(Self.hostID)
+        host.launchArguments = ["-DriveShare", text]
+        host.launch()
+        try Share(driver: self, source: host).pick(target)
     }
 }

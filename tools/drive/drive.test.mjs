@@ -8,7 +8,8 @@ import { android } from './android.mjs';
 
 const SCREEN = {
   role: 'Screen',
-  children: [{ role: 'Application', label: 'Demo', states: ['focused'], children: [{ role: 'Button', label: 'Compose', frame: [10, 20, 30, 40] }] }],
+  children: [{ role: 'Application', label: 'Demo', states: ['focused'], children: [{ role: 'Button', label: 'Compose', frame: [10, 20, 30, 40] }] },
+    { role: 'Other', label: 'Hi', id: 'NotificationShortLookView' }],
 };
 const PNG = Buffer.from('png').toString('base64');
 
@@ -80,7 +81,7 @@ test('a step prints the tree and saves the screenshot', async () => {
   const f = await run(['ios', 'tap', 'Compose'], { state: IOS });
   assert.equal(f.code, 0);
   assert.deepEqual(f.calls.send, [{ op: 'tap', label: 'Compose', app: 'dev.demo' }]);
-  assert.match(f.out, /^Screen\n {2}Application "Demo" focused\n {4}Button "Compose" @10,20,30,40\nscreenshot: \/state\/shots\/.+-ios-tap\.png\n$/);
+  assert.match(f.out, /^Screen\n {2}Application "Demo" focused\n {4}Button "Compose" @10,20,30,40\n {2}Other "Hi" \[NotificationShortLookView\]\nscreenshot: \/state\/shots\/.+-ios-tap\.png\n$/);
   assert.equal(Object.values(f.calls.files)[0].toString(), 'png');
 });
 
@@ -107,6 +108,15 @@ test('a step on an app that is not running fails with what is on the screen inst
   assert.ok(!ios.calls.send.some((r) => r.op === 'home'));
   const and = await run(['android', 'background'], { state: AND, sh: (c, a) => { if (a.join(' ').includes('pidof')) throw new Error('exit 1'); return ''; } });
   assert.match(and.err, /^drive: background: dev\.demo is not running\nOn the screen instead:/);
+});
+
+test('a push the app may not show yet says how to allow it', async () => {
+  const sh = (cmd, args) => {
+    if (args.includes('push')) throw Object.assign(new Error('failed'), { stderr: 'Source is not authorized.' });
+    return '';
+  };
+  const f = await run(['ios', 'notify', 'Hi'], { state: IOS, sh });
+  assert.match(f.err, /^drive: dev\.demo may not show notifications yet: let it ask, tap Allow, then notify again\nOn the screen instead:/);
 });
 
 test('without a session a step says how to start one', async () => {
@@ -193,9 +203,9 @@ test('each change on iOS runs its simctl, idb or runner step', async () => {
     assert.deepEqual(f.calls.sh, commands, argv.join(' '));
     expectRequests(f.calls.send, requests);
   }
-  const push = await run(['ios', 'notify', 'Hi', 'there', '--data', 'post=7'], { state: IOS });
+  const push = await run(['ios', 'notify', 'Hi', 'there', '--data', 'post=7', '--data', 'kind=reply'], { state: IOS });
   assert.deepEqual(JSON.parse(push.calls.files['/state/push.json']),
-    { aps: { alert: { title: 'Hi', body: 'there' }, sound: 'default' }, post: '7' });
+    { aps: { alert: { title: 'Hi', body: 'there' }, sound: 'default' }, post: 7, kind: 'reply' });
 });
 
 test('each change on Android runs its adb or runner step', async () => {
