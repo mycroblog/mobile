@@ -1,3 +1,4 @@
+import AppData
 import SwiftUI
 
 /// The root of a scene: the top-level destinations in the OS tab container, which shows a tab bar in compact width
@@ -7,10 +8,21 @@ import SwiftUI
 /// open from a list in a fifth tab, so that the system's More tab never appears: a NavigationStack inside it shows a
 /// second navigation bar under the system's own.
 public struct RootView: View {
-    @SceneStorage("RootView.selection") private var selection: RootSelection = .destination(.home)
+    @SceneStorage("RootView.navigation") private var navigation = RootNavigation()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    // The server screen belongs to the scene, above the tab container, so that rebuilding the destinations when the
+    // width changes does not close it; whether it is open and the address typed in it are restored with the scene
+    // (ADR-0009 §3). A result is not restored: it is looked up again with "Look up".
+    @State private var serverLookup: ServerLookupModel?
+    @SceneStorage("RootView.isLookingUpAServer") private var isLookingUpAServer = false
+    @SceneStorage("RootView.serverAddress") private var serverAddress = ""
 
-    public init() {}
+    private let instanceLookup: any InstanceLookup
+
+    /// The root of a scene, whose screens look up servers with `instanceLookup`.
+    public init(instanceLookup: any InstanceLookup) {
+        self.instanceLookup = instanceLookup
+    }
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
 
@@ -23,7 +35,7 @@ public struct RootView: View {
             ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
-                        DestinationPlaceholder(destination: destination)
+                        DestinationScreen(destination: destination, addAccount: lookUpAServer)
                     }
                 } label: {
                     TabLabel(title: destination.title, systemImage: destination.systemImage)
@@ -34,7 +46,7 @@ public struct RootView: View {
                     NavigationStack(path: overflowPath) {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
-                                DestinationPlaceholder(destination: destination)
+                                DestinationScreen(destination: destination, addAccount: lookUpAServer)
                             }
                     }
                 } label: {
@@ -44,30 +56,45 @@ public struct RootView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .sidebarOnTheInnerDisplay()
+        .sheet(item: $serverLookup) { model in
+            NavigationStack {
+                ServerLookupScreen(model: model)
+            }
+        }
+        .onChange(of: serverLookup?.address) { _, address in
+            serverAddress = address ?? ""
+        }
+        .onChange(of: serverLookup == nil) { _, isClosed in
+            isLookingUpAServer = !isClosed
+        }
+        .onAppear(perform: restoreServerLookup)
     }
 
-    /// The selected tab: in compact width an overflow destination is shown in the overflow list's tab; in regular
-    /// width the overflow list has no tab, so Home stands for it.
+    private func lookUpAServer() {
+        serverLookup = ServerLookupModel(lookup: instanceLookup)
+    }
+
+    /// Opens the server screen again, with the address that was typed, when the scene had it open.
+    private func restoreServerLookup() {
+        guard isLookingUpAServer, serverLookup == nil else { return }
+        serverLookup = ServerLookupModel(lookup: instanceLookup, address: serverAddress)
+    }
+
+    /// The selected tab, which RootNavigation maps to and from what the root shows.
     private var tabSelection: Binding<RootSelection> {
         Binding {
-            if isCompact {
-                selection.overflowDestination == nil ? selection : .overflowList
-            } else {
-                selection == .overflowList ? .destination(.home) : selection
-            }
-        } set: { newValue in
-            // Selecting the overflow list's tab again keeps the destination open in it.
-            if newValue == .overflowList, selection.overflowDestination != nil { return }
-            selection = newValue
+            navigation.tab(isCompact: isCompact)
+        } set: { tab in
+            navigation.select(tab: tab)
         }
     }
 
-    /// The stack of the overflow list's tab: the overflow destination that is open, if any.
+    /// The stack of the overflow list's tab: the overflow destination open in it, if any.
     private var overflowPath: Binding<[TopLevelDestination]> {
         Binding {
-            selection.overflowDestination.map { [$0] } ?? []
+            navigation.overflowPath
         } set: { path in
-            selection = path.last.map(RootSelection.destination) ?? .overflowList
+            navigation.setOverflowPath(path)
         }
     }
 }
@@ -96,6 +123,19 @@ private struct OverflowList: View {
             }
         }
         .navigationTitle("More")
+    }
+}
+
+/// The screen of a top-level destination: its feature, or its placeholder until the feature lands.
+private struct DestinationScreen: View {
+    let destination: TopLevelDestination
+    let addAccount: () -> Void
+
+    var body: some View {
+        switch destination {
+        case .settings: SettingsScreen(addAccount: addAccount)
+        default: DestinationPlaceholder(destination: destination)
+        }
     }
 }
 

@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">Settings</string>
+    <string name="settings_add_account">Add an account</string>
+
+    <string name="choose_server_title">Choose a server</string>
+    <string name="choose_server_address_label">Server address</string>
+    <string name="choose_server_address_hint">example.social</string>
+    <string name="choose_server_look_up">Look up</string>
+    <string name="choose_server_invalid_address">Enter a server address such as example.social.</string>
+    <string name="choose_server_looking_up">Looking up %1$s…</string>
+    <string name="choose_server_could_not_reach">Could not reach %1$s.</string>
+    <string name="choose_server_no_answer">The server did not answer.</string>
+    <string name="choose_server_not_mycroblog">This is not a mycroblog server.</string>
+    <string name="choose_server_try_again">Try again</string>
 </resources>

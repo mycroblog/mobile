@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- enableOnBackInvokedCallback opts Android 13 to 15 in to predictive back (ADR-0010 §2); from Android 16 it
          is on by default for this target SDK, and Android 12 ignores it (tools:targetApi). -->
     <application
@@ -12,9 +14,12 @@
         android:theme="@style/Theme.Mycroblog"
         tools:targetApi="33">
 
+        <!-- adjustResize: the keyboard reaches Compose as the ime insets, which the screens keep their content above,
+             instead of the window being panned up under the status bar. -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

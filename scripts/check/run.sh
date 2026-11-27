@@ -403,9 +403,19 @@ ios_test_layer() {
   printf 'ios: the %s tests passed in %s s.\n' "$layer" "$(( SECONDS - start ))"
 }
 
-# The unit tests: the API package's tests of the generated types against shared/fixtures.
+# The unit test target of each package that has one, as <package>:<target>.
+IOS_UNIT_TESTS=(API:APITests Domain:DomainTests Features:FeaturesUnitTests)
+
+# The unit tests of each package of IOS_UNIT_TESTS, each as the layer unit-<package>: the logic, and the tests against
+# shared/fixtures.
 ios_test_unit() {
-  (cd "$IOS/Packages/API" && ios_test_layer unit -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APITests) ||
+  local failed=0 entry pkg target
+  for entry in "${IOS_UNIT_TESTS[@]}"; do
+    pkg="${entry%%:*}" target="${entry#*:}"
+    (cd "$IOS/Packages/$pkg" && ios_test_layer "unit-$pkg" -scheme "$pkg" -derivedDataPath "$IOS_BUILD/packages/$pkg" \
+      -only-testing:"$target") || failed=1
+  done
+  (( failed == 0 )) ||
     fail "the unit tests failed: fix the code, or the fixture under shared/fixtures when what it pins has changed in my (above)."
 }
 
@@ -416,7 +426,8 @@ ios_test_screenshot() {
   rm -rf "$artifacts"
   mkdir -p "$artifacts"
   (cd "$IOS/Packages/Features" && TEST_RUNNER_SNAPSHOT_ARTIFACTS="$artifacts" TEST_RUNNER_SNAPSHOT_TESTING_RECORD="$record" \
-    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features") || status=$?
+    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features" -only-testing:FeaturesTests) ||
+    status=$?
   printf 'ios: the reference images:\n'
   find "$IOS_SNAPSHOTS" -name '*.png' 2>/dev/null | sort | sed 's/^/  /'
   (( status == 0 )) && return 0
@@ -821,7 +832,7 @@ check_android_launch() {
 
 # The test layers of the Android app that run on the JVM (ADR-0006 §1): the unit tests, the screenshot tests and the
 # integration tests, the last against the local my at MY_URL (task android:test starts it with task my:up).
-ANDROID_SCREENSHOT_MODULES=("core/designsystem")
+ANDROID_SCREENSHOT_MODULES=("core/designsystem" "feature/settings/impl")
 
 # Prints the path of each image a reviewer opens: every reference, and each new image and comparison of a failure.
 print_android_screenshots() {
@@ -838,7 +849,7 @@ print_android_screenshots() {
 
 check_android_test() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local url="${MY_URL:-}" module tasks=(:core:api:test :core:api:integrationTest)
+  local url="${MY_URL:-}" module tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
   [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
   for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
     tasks+=(":${module//\//:}:verifyRoborazziDebug")
