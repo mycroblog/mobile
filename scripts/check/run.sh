@@ -789,9 +789,11 @@ boot_android() {
   rm -f "$log"
 }
 
-# Boots the AVD drive-<kind>, installs and launches the app, confirms that it runs with its activity in front, and
-# stops the emulator.
+# Boots the AVD drive-<kind> on the console port $3, installs and launches the app, confirms that it runs with its
+# activity in front, and stops the emulator. Each AVD of a check gets a port of its own: adb keeps the stopped one's
+# serial as offline for a while, and a next emulator on the same port is then reported offline after it has booted.
 launch_android_on() {
+  ANDROID_CONSOLE_PORT="$3"
   local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb
   adb="$ANDROID_SDK/platform-tools/adb"
   boot_android "$1" "$profile"
@@ -826,8 +828,8 @@ check_android_launch() {
   android_gradle :app:assembleDebug ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebug), then check again.'
   take_device "the Android launch check"
-  launch_android_on phone pixel_9
-  launch_android_on tablet pixel_tablet
+  launch_android_on phone pixel_9 5620
+  launch_android_on tablet pixel_tablet 5622
   release_device
 }
 
