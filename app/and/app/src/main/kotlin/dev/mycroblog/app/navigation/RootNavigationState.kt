@@ -92,6 +92,12 @@ class RootNavigationState(
         return if (hasUp) ::back else null
     }
 
+    /** Opens [key] over the screen shown, on the back stack of the selected destination. */
+    fun navigate(key: NavKey) {
+        showingMore = false
+        stacks.getValue(selected).add(key)
+    }
+
     /** One step back, as the back gesture or button asks. */
     fun back() {
         val stack = stacks.getValue(selected)

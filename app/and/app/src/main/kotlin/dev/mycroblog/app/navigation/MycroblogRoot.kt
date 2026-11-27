@@ -77,7 +77,7 @@ fun MycroblogRoot() {
         messagesEntries(state::navigateUp)
         profileEntries(state::navigateUp)
         bookmarksEntries(state::navigateUp)
-        settingsEntries(state::navigateUp)
+        settingsEntries(state::navigateUp, state::navigate)
         entry<MoreKey> { MoreScreen(destinations = state.moreItems, onSelect = state::select) }
     }
     // Each back stack keeps the saved state and the ViewModels of its entries while another one is shown.

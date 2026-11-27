@@ -2,3 +2,7 @@
 plugins {
     alias(libs.plugins.mycroblog.feature.impl)
 }
+
+dependencies {
+    implementation(project(":core:data"))
+}

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- enableOnBackInvokedCallback opts Android 13 to 15 in to predictive back (ADR-0010 §2); from Android 16 it
          is on by default for this target SDK, and Android 12 ignores it (tools:targetApi). -->
     <application

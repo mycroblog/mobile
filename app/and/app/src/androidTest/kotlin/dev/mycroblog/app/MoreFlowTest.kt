@@ -6,7 +6,6 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dev.mycroblog.core.designsystem.R as DesignSystemR
 import dev.mycroblog.feature.settings.impl.R as SettingsR
 import org.junit.Rule
 import org.junit.Test
@@ -26,6 +25,6 @@ class MoreFlowTest {
         compose.onNodeWithText(string(R.string.destination_settings)).performClick()
 
         compose.onNodeWithText(string(SettingsR.string.settings_title)).assertIsDisplayed()
-        compose.onNodeWithText(string(DesignSystemR.string.placeholder_empty)).assertIsDisplayed()
+        compose.onNodeWithText(string(SettingsR.string.settings_add_account)).assertIsDisplayed()
     }
 }

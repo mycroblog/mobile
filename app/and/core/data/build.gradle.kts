@@ -7,4 +7,7 @@ plugins {
 dependencies {
     api(project(":core:model"))
     implementation(project(":core:api"))
+    // The engine of the HttpClient on Android. The repositories take the engine from Hilt (HttpEngineModule), so a
+    // test can give another one.
+    implementation(libs.ktor.client.okhttp)
 }
