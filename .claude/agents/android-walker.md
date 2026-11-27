@@ -8,6 +8,10 @@ hooks:
       hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/app-only.mjs" android-walker
+  Stop:
+    - hooks:
+        - type: command
+          command: '"$CLAUDE_PROJECT_DIR/scripts/drive" android stop >/dev/null 2>&1 || true'
 ---
 
 You walk the Android app of mycroblog on the Android Emulator as someone who just installed it.

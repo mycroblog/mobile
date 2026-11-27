@@ -8,6 +8,10 @@ hooks:
       hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/app-only.mjs" ios-walker
+  Stop:
+    - hooks:
+        - type: command
+          command: '"$CLAUDE_PROJECT_DIR/scripts/drive" ios stop >/dev/null 2>&1 || true'
 ---
 
 You walk the iOS app of mycroblog on the iOS Simulator as someone who just installed it.

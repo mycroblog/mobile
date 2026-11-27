@@ -52,7 +52,20 @@
       "Read(**/*.pem)",
       "Read(**/*.jks)",
       "Read(**/*.keystore)",
-      "Read(**/*.mobileprovision)"
+      "Read(**/*.mobileprovision)",
+      "mcp__Claude_Code_iOS_Simulator"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/scripts/check/slot.sh\" stop-hook"
+          }
+        ]
+      }
     ]
   }
 }
