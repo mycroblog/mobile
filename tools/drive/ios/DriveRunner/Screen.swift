@@ -69,7 +69,8 @@ final class Screen {
 
     /// What springboard shows over the app in front: an alert or a notification banner.
     private static let overlay = NSPredicate(
-        format: "elementType == %lu OR identifier == %@", XCUIElement.ElementType.alert.rawValue, "NotificationShortLookView"
+        format: "elementType == %lu OR identifier == %@", XCUIElement.ElementType.alert.rawValue,
+        "NotificationShortLookView"
     )
 
     /// The identifiers of the containers of another process's views.
@@ -81,7 +82,9 @@ final class Screen {
     /// An element wholly off the screen is left out with its children.
     private func nodes(_ snapshot: XCUIElementSnapshot, offset: CGPoint, bounds: CGRect) -> [[String: Any]] {
         let frame = snapshot.frame.offsetBy(dx: offset.x, dy: offset.y)
-        if snapshot.elementType != .application, !frame.isEmpty, !bounds.isEmpty, !frame.intersects(bounds) { return [] }
+        if snapshot.elementType != .application, !frame.isEmpty, !bounds.isEmpty, !frame.intersects(bounds) {
+            return []
+        }
         // In a snapshot, the views another process shows inside a container (the share sheet) have frames relative to
         // it; queried elements have screen frames.
         let inner = Self.remoteContainers.contains(snapshot.identifier) ? CGPoint(x: frame.minX, y: frame.minY) : offset

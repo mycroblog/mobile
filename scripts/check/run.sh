@@ -108,6 +108,122 @@ check_ios_imports() {
   return "$failed"
 }
 
+# The hand-written Swift of the repository, committed or not, NUL-separated: everything but the generated client
+# (ADR-0003 §2) and what .gitignore leaves out, such as the build output. With an argument, only the files under it.
+IOS_SWIFT_FORMAT_CONFIG="$ROOT/.swift-format"
+ios_swift_files() {
+  local file
+  while IFS= read -r -d '' file; do
+    [[ -f "$ROOT/$file" ]] && printf '%s\0' "$file"
+  done < <(git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- "${@:-.}" |
+    grep -z '\.swift$' | grep -zv '^app/ios/Packages/API/Sources/GeneratedAPI/')
+}
+
+# swift format, from the selected Xcode's toolchain, with the configuration of .swift-format.
+ios_swift_format() {
+  need swift "install Xcode $(tr -d '[:space:]' <"$ROOT/.xcode-version") (CONTRIBUTING.md)"
+  (cd "$ROOT" && ios_swift_files | xargs -0 swift format "$@" --configuration "$IOS_SWIFT_FORMAT_CONFIG")
+}
+
+check_ios_lint() {
+  ios_swift_format lint --strict --parallel ||
+    fail 'the Swift above is not formatted as .swift-format says: run task ios:format, fix by hand what it leaves, then check again.'
+}
+
+check_ios_format() {
+  ios_swift_format format --in-place --parallel || fail 'swift format could not format the files above: fix what it says.'
+  ios_swift_format lint --strict --parallel ||
+    fail 'swift format formatted the code but cannot fix the findings above by itself: fix each by hand, then check again.'
+}
+
+# ADR-0009 §1: the screens of the app (its sources, not its tests) are laid out by the size classes and the
+# container's size, never by the device idiom, the orientation, the screen's size or a fixed width.
+# scripts/check/ios-layout.pl holds the rule and what it allows.
+check_ios_layout() {
+  need perl "perl ships with macOS"
+  local files=() file
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <(ios_swift_files app/ios/App/Sources 'app/ios/Packages/*/Sources/*')
+  (( ${#files[@]} )) || return 0
+  (cd "$ROOT" && perl "$ROOT/scripts/check/ios-layout.pl" "${files[@]}")
+}
+
+# The edges of the package graph that ADR-0009 §7 allows, as "<package>|<the packages it may declare>". The
+# extensions use only Domain and API (ADR-0007 §1), which therefore declare no UI and not AppData; only the app and
+# Features declare AppData, the store and the sync (ADR-0008 §5); the screens read the store, never the API
+# (ADR-0008 §1); DesignSystem stands on nothing. A new package needs a line here, with the ADR that allows its edges.
+IOS_PACKAGE_EDGES=(
+  "Domain|"
+  "DesignSystem|"
+  "API|Domain"
+  "AppData|Domain API"
+  "Features|Domain AppData DesignSystem"
+)
+# What a target of app/ios/project.yml other than the app and its tests may declare: an extension (ADR-0007 §1).
+IOS_EXTENSION_PACKAGES="Domain API"
+
+ios_allowed_edges() {
+  local edge
+  for edge in "${IOS_PACKAGE_EDGES[@]}"; do
+    [[ "${edge%%|*}" == "$1" ]] && { printf '%s\n' "${edge#*|}"; return 0; }
+  done
+  return 1
+}
+
+# The declared graph against the allowed edges: the local packages each Package.swift declares, and the packages each
+# target of project.yml declares. Then that the generated client stays inside the API package: its types are
+# `package` (openapi-generator-config.yaml), no product of the API package holds the target GeneratedAPI, and no
+# file outside the package imports it.
+check_ios_dependencies() {
+  need jq "install jq with brew install jq"
+  need xcodegen "install XcodeGen with asdf install xcodegen"
+  local failed=0 pkg allowed dep path target type deps file
+  for pkg in $(ios_packages); do
+    if ! allowed="$(ios_allowed_edges "$pkg")"; then
+      printf 'check: the package %s has no line in IOS_PACKAGE_EDGES of scripts/check/run.sh: add the packages it may declare, as ADR-0009 §7 allows.\n' "$pkg" >&2
+      failed=1
+      continue
+    fi
+    while IFS= read -r path; do
+      dep="$(basename "$path")"
+      if [[ "$(dirname "$path")" != "$IOS/Packages" ]]; then
+        printf 'check: app/ios/Packages/%s/Package.swift declares the local package %s outside app/ios/Packages: move it there and give it a line in IOS_PACKAGE_EDGES.\n' "$pkg" "${path#"$ROOT"/}" >&2
+        failed=1
+      elif [[ " $allowed " != *" $dep "* ]]; then
+        printf 'check: app/ios/Packages/%s/Package.swift declares %s, against the direction of ADR-0009 §7 (%s may declare: %s): remove it and move the code that needs it into a package allowed to.\n' \
+          "$pkg" "$dep" "$pkg" "${allowed:-no other package}" >&2
+        failed=1
+      fi
+    done < <(cd "$IOS/Packages/$pkg" && swift package dump-package | jq -r '.dependencies[].fileSystem[0].path // empty')
+  done
+  while IFS=$'\t' read -r target type deps; do
+    [[ "$type" == application || "$type" == bundle.* ]] && continue
+    for dep in $deps; do
+      [[ " $IOS_EXTENSION_PACKAGES " == *" $dep "* ]] && continue
+      printf 'check: the target %s (%s) of app/ios/project.yml declares the package %s: an extension uses only %s (ADR-0007 §1, ADR-0009 §7); the store and the screens are the app'"'"'s.\n' \
+        "$target" "$type" "$dep" "$IOS_EXTENSION_PACKAGES" >&2
+      failed=1
+    done
+  done < <(cd "$IOS" && xcodegen dump --type json |
+    jq -r '.targets | to_entries[] | [.key, .value.type, ([.value.dependencies[]? | .package // empty] | join(" "))] | @tsv')
+  grep -Eq '^accessModifier:[[:space:]]*package[[:space:]]*$' "$IOS_API/openapi-generator-config.yaml" || {
+    printf 'check: app/ios/Packages/API/openapi-generator-config.yaml must say accessModifier: package, so that only the API package sees the generated types (ADR-0009 §7): set it back and run task api:generate.\n' >&2
+    failed=1
+  }
+  if (cd "$IOS_API" && swift package dump-package) | jq -e '.products[] | select(.targets | index("GeneratedAPI"))' >/dev/null; then
+    printf 'check: a product of app/ios/Packages/API/Package.swift holds the target GeneratedAPI: remove it; the product API exposes hand-written types only (ADR-0009 §7).\n' >&2
+    failed=1
+  fi
+  while IFS= read -r -d '' file; do
+    [[ "$file" == app/ios/Packages/API/* ]] && continue
+    grep -Eq '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?GeneratedAPI\b' "$ROOT/$file" || continue
+    printf 'check: %s imports GeneratedAPI, which only the API package may use (ADR-0009 §7): use the hand-written types of the product API, and add one there when it lacks it.\n' "$file" >&2
+    failed=1
+  done < <(ios_swift_files app/ios)
+  return "$failed"
+}
+
 # Runs an xcodebuild build for the iOS Simulator and prints only its errors when it fails.
 ios_xcodebuild() {
   local out
@@ -441,6 +557,78 @@ check_android_build() {
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew assembleDebug), then check again.'
 }
 
+# Downloads the jar $1 from the URL $2 to $4 once, and refuses it when its SHA-256 is not $3.
+need_pinned_jar() {
+  local name="$1" url="$2" sha256="$3" jar="$4"
+  need java "install the JDK of .tool-versions with asdf install java"
+  need curl "install curl"
+  if [[ ! -f "$jar" ]]; then
+    mkdir -p "$(dirname "$jar")"
+    curl -fsSL -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
+    mv "$jar.part" "$jar"
+  fi
+  [[ "$(shasum -a 256 "$jar" | cut -d ' ' -f 1)" == "$sha256" ]] || {
+    rm -f "$jar"
+    fail "the $name jar from $url does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change the pinned SHA-256 without checking the jar."
+  }
+}
+
+# ktlint, pinned by version and by the SHA-256 of its jar on Maven Central, formats and checks the hand-written
+# Kotlin of app/and in the style of .editorconfig; the generated client and the build output are left alone.
+KTLINT_VERSION="1.8.0"
+KTLINT_SHA256="369ad2b789f95a011f807e1fcb690ccef80bd7cd014fd139e73ae82dcc0baeab"
+KTLINT_URL="https://repo1.maven.org/maven2/com/pinterest/ktlint/ktlint-cli/$KTLINT_VERSION/ktlint-cli-$KTLINT_VERSION-all.jar"
+KTLINT_JAR="$ANDROID_APP/build/tools/ktlint-$KTLINT_VERSION.jar"
+KTLINT_FILES=('**/*.kt' '**/*.kts' '!**/src/generated/**' '!**/build/**' '!**/.gradle/**')
+
+android_ktlint() {
+  need_pinned_jar ktlint "$KTLINT_URL" "$KTLINT_SHA256" "$KTLINT_JAR"
+  (cd "$ANDROID_APP" && java -jar "$KTLINT_JAR" --relative --log-level=error "$@" "${KTLINT_FILES[@]}")
+}
+
+# Fails on Kotlin that is not formatted as ktlint formats it, and on what Android Lint finds in any module.
+check_android_lint() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
+  android_ktlint ||
+    fail 'the Kotlin above (paths under app/and) is not formatted as .editorconfig says: run task android:format, fix by hand what it cannot (each line names its ktlint rule), then check again.'
+  android_gradle lint --continue ||
+    fail 'Android Lint found the issues above: fix each as its message says (the report of each module is under app/and/<module>/build/reports), then check again. Suppress one only with @Suppress("<issue id>") and a comment that says why.'
+}
+
+check_android_format() {
+  android_ktlint --format || fail 'ktlint could not fix the lines above: fix each by hand as its rule says.'
+  printf 'android: formatted the Kotlin of app/and with ktlint %s\n' "$KTLINT_VERSION"
+}
+
+# Layout by window size class (ADR-0010 §4): hand-written Kotlin must not lay out by orientation, screen size or the
+# display. Each entry is "<extended regex>|<what to use instead>". Android Lint also holds the orientation lock
+# (LockedOrientationActivity, SourceLockedOrientationActivity) and the screen size (ConfigurationScreenWidthHeight),
+# without naming the ADR.
+ANDROID_LAYOUT_FORBIDDEN=(
+  '\.orientation\b|ORIENTATION_(PORTRAIT|LANDSCAPE|SQUARE|UNDEFINED)|orientation is not a layout signal: switch on currentWindowAdaptiveInfoV2().windowSizeClass (height compact for a landscape phone)'
+  '\b(screenWidthDp|screenHeightDp|smallestScreenWidthDp)\b|the screen size is not the window size: switch on currentWindowAdaptiveInfoV2().windowSizeClass, and size a component from LocalWindowInfo.current.containerSize'
+  '\bscreenLayout\b|SCREENLAYOUT_|the device type is not a layout signal: switch on currentWindowAdaptiveInfoV2().windowSizeClass'
+  '\b(widthPixels|heightPixels|getRealMetrics|getRealSize|defaultDisplay|getDefaultDisplay)\b|the display is not the window: switch on currentWindowAdaptiveInfoV2().windowSizeClass, and size a component from LocalWindowInfo.current.containerSize'
+  '\b(requestedOrientation|setRequestedOrientation)\b|SCREEN_ORIENTATION_|the app works in every orientation and size (API 36 ignores the lock from 600dp): lay out by currentWindowAdaptiveInfoV2().windowSizeClass instead of locking the orientation'
+)
+
+check_android_layout() {
+  local failed=0 entry pattern advice hits f
+  local files=()
+  while IFS= read -r -d '' f; do files+=("$f"); done < <(git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- 'app/and/*.kt' ':!:app/and/**/src/generated/**')
+  for entry in "${ANDROID_LAYOUT_FORBIDDEN[@]}"; do
+    pattern="${entry%|*}"
+    advice="${entry##*|}"
+    hits="$(grep -snE -- "$pattern" "${files[@]}" || true)"
+    if [[ -n "$hits" ]]; then
+      printf '%s\n' "$hits" >&2
+      printf 'check: %s (ADR-0010 §4).\n' "$advice" >&2
+      failed=1
+    fi
+  done
+  (( failed == 0 )) || fail 'the Kotlin above lays out by device, orientation or screen rather than by window size class (ADR-0010 §4): change it as each line under it says.'
+}
+
 # The Kotlin client of the client API (ADR-0003 §2): Fabrikt, pinned by version and by the SHA-256 of its jar on
 # Maven Central, generates it from shared/api/openapi.yaml into the committed sources of :core:api.
 FABRIKT_VERSION="29.2.0"
@@ -459,17 +647,7 @@ FABRIKT_OPTIONS=(
 
 # Downloads the Fabrikt jar once, and refuses it when its SHA-256 is not the pinned one.
 need_fabrikt() {
-  need java "install the JDK of .tool-versions with asdf install java"
-  need curl "install curl"
-  if [[ ! -f "$FABRIKT_JAR" ]]; then
-    mkdir -p "$(dirname "$FABRIKT_JAR")"
-    curl -fsSL -o "$FABRIKT_JAR.part" "$FABRIKT_URL" || fail "could not download Fabrikt from $FABRIKT_URL: check the network, then run again."
-    mv "$FABRIKT_JAR.part" "$FABRIKT_JAR"
-  fi
-  [[ "$(shasum -a 256 "$FABRIKT_JAR" | cut -d ' ' -f 1)" == "$FABRIKT_SHA256" ]] || {
-    rm -f "$FABRIKT_JAR"
-    fail "the Fabrikt jar from $FABRIKT_URL does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change FABRIKT_SHA256 without checking the jar."
-  }
+  need_pinned_jar Fabrikt "$FABRIKT_URL" "$FABRIKT_SHA256" "$FABRIKT_JAR"
 }
 
 # Writes the Kotlin client that shared/api/openapi.yaml generates into the directory $1, replacing what it held.
@@ -680,6 +858,10 @@ case "${1:-}" in
   xcode-version) check_xcode_version ;;
   ios-generate) check_ios_generate ;;
   ios-imports) check_ios_imports ;;
+  ios-lint) check_ios_lint ;;
+  ios-format) check_ios_format ;;
+  ios-layout) check_ios_layout ;;
+  ios-dependencies) check_ios_dependencies ;;
   ios-packages) check_ios_packages ;;
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
@@ -689,6 +871,9 @@ case "${1:-}" in
   ios-api-generate) check_ios_api_generate "${2:-}" ;;
   ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
+  android-lint) check_android_lint ;;
+  android-format) check_android_format ;;
+  android-layout) check_android_layout ;;
   android-launch) check_android_launch ;;
   android-test) check_android_test ;;
   android-record-screenshots) check_android_record_screenshots ;;

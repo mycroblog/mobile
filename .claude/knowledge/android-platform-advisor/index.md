@@ -14,6 +14,8 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `nav-rail-and-bar.md` | NavigationRail layout, NavigationBarItem labels and icons |
 | `test-layers.md` | Robolectric SDK support, Roborazzi setup and output dirs, dynamic color under Robolectric |
 | `test-instrumented-jvm.md` | androidTest with Compose and Hilt, androidx.test versions, Ktor JVM engine, Gradle Test inputs |
+| `lint-and-format.md` | ktlint CLI and styles, ktlint-gradle with built-in Kotlin, Android Lint DSL, lint on JVM modules |
+| `layout-by-window.md` | Window size classes, lint checks on orientation and screen size, containerSize |
 | `ui-automation.md` | UiAutomation windows, Compose accessibility node info, shell commands from an instrumented runner |
 
 ## Rules for a line

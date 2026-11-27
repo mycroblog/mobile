@@ -37,7 +37,8 @@ private struct ShareOnLaunch: UIViewControllerRepresentable {
             let content: Any = URL(string: item).flatMap { $0.scheme == nil ? nil : $0 } ?? item
             let sheet = UIActivityViewController(activityItems: [content], applicationActivities: nil)
             sheet.popoverPresentationController?.sourceView = view
-            sheet.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+            sheet.popoverPresentationController?.sourceRect = CGRect(
+                x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
             present(sheet, animated: true)
         }
     }

@@ -1,13 +1,41 @@
-# The iOS app (app/ios): its generated project, its packages and their dependency direction (ADR-0009 §7), and the
-# app on the iPhone and iPad simulators.
+# The iOS app (app/ios): its generated project, the format of its Swift, the layout rule of ADR-0009 §1, its packages
+# and their dependency direction (ADR-0009 §7), and the app on the iPhone and iPad simulators.
 version: "3"
 
 tasks:
   check:
-    desc: Refuse an import against the dependency direction, build each package on its own, and build the app
+    desc: Lint the Swift, refuse a layout by device or a dependency against the direction, build each package on its own, and build the app
     platforms: [darwin]
     failfast: false
-    deps: [imports, packages, build]
+    deps: [lint, layout, dependencies, imports, packages, build]
+
+  lint:
+    desc: Fail when the hand-written Swift is not formatted as .swift-format says (swift format lint), naming task ios:format
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-lint
+
+  format:
+    desc: Format the hand-written Swift in place with swift format and .swift-format, then lint what it cannot fix
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-format
+
+  layout:
+    desc: Refuse a layout by device idiom, orientation, screen or window size, or a fixed width in the app's Swift (ADR-0009 §1)
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-layout
+
+  dependencies:
+    desc: Refuse a declared package dependency against ADR-0009 §7 in Package.swift or project.yml, and a generated API type reachable outside the API package
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-dependencies
 
   generate:
     desc: Generate app/ios/Mycroblog.xcodeproj from app/ios/project.yml with XcodeGen

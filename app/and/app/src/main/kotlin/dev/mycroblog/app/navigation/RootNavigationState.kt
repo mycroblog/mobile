@@ -97,10 +97,12 @@ class RootNavigationState(
         val stack = stacks.getValue(selected)
         when {
             selectedShown && stack.size > 1 -> stack.removeAt(stack.lastIndex)
+
             barLayout && !showingMore && !selected.inBar -> {
                 showingMore = true
                 moreDestination = null
             }
+
             else -> select(TopLevelDestination.HOME)
         }
     }

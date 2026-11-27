@@ -8,7 +8,9 @@ import javax.inject.Inject
 
 /** The application: the root of Hilt's components (ADR-0010 §5), and WorkManager's configuration with Hilt's workers. */
 @HiltAndroidApp
-class MycroblogApplication : Application(), Configuration.Provider {
+class MycroblogApplication :
+    Application(),
+    Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
