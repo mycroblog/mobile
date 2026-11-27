@@ -1,0 +1,43 @@
+## client log (app + extension, with heartbeats)
+03:34:36.001 [app 82333] reset: stored gen 0
+03:34:36.011 [app 82333] launched; keychain token gen=0 mode=flock
+03:34:36.012 [app 82333] waiting 1 s for the shared start
+03:34:37.012 [app 82333] heartbeat
+03:34:37.845 [app 82333] loop start mode=flock n=1
+03:34:37.854 [app 82333] flock acquired after 0 ms
+03:34:38.012 [app 82333] heartbeat
+03:34:39.012 [app 82333] heartbeat
+03:34:40.012 [app 82333] heartbeat
+03:34:41.012 [app 82333] heartbeat
+03:34:42.012 [app 82333] heartbeat
+03:34:43.012 [app 82333] heartbeat
+03:34:44.012 [app 82333] heartbeat
+03:34:45.016 [app 82333] heartbeat
+03:35:30.693 [app 82333] heartbeat
+03:35:30.898 [app 82333] flock: refreshed gen 0 -> 1
+03:35:31.100 [app 82333] loop end
+03:35:32.059 [app 82333] heartbeat
+03:35:33.011 [app 82333] heartbeat
+03:35:34.013 [app 82333] heartbeat
+03:35:35.011 [app 82333] heartbeat
+03:35:36.011 [app 82333] heartbeat
+03:35:37.011 [app 82333] heartbeat
+03:35:38.011 [app 82333] heartbeat
+03:35:39.010 [app 82333] heartbeat
+03:35:40.010 [app 82333] heartbeat
+03:35:41.011 [app 82333] heartbeat
+03:35:42.011 [app 82333] heartbeat
+03:35:43.011 [app 82333] heartbeat
+03:35:44.010 [app 82333] heartbeat
+03:35:45.011 [app 82333] heartbeat
+03:35:46.010 [app 82333] heartbeat
+03:35:47.010 [app 82333] heartbeat
+03:35:48.010 [app 82333] heartbeat
+03:35:49.010 [app 82333] heartbeat
+
+## server log
+03:34:35.979 ISSUE family=278b3de0
+03:34:37.881 ok   app gen 0 -> 1
+
+## server stats
+{"ok":1,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1"]}

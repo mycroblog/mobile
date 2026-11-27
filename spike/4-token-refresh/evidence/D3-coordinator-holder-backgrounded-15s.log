@@ -1,0 +1,38 @@
+## client log (app + extension, with heartbeats)
+03:43:14.820 [app 87541] reset: stored gen 0
+03:43:14.829 [app 87541] launched; keychain token gen=0 mode=coord
+03:43:14.830 [app 87541] waiting 1 s for the shared start
+03:43:15.831 [app 87541] heartbeat
+03:43:16.559 [app 87541] loop start mode=coord n=1
+03:43:16.618 [app 87541] coordinator acquired after 56 ms
+03:43:16.831 [app 87541] heartbeat
+03:43:17.831 [app 87541] heartbeat
+03:43:18.831 [app 87541] heartbeat
+03:43:19.831 [app 87541] heartbeat
+03:43:20.831 [app 87541] heartbeat
+03:43:22.059 [app 87541] heartbeat
+03:43:22.834 [app 87541] heartbeat
+03:43:23.834 [app 87541] heartbeat
+03:43:24.834 [app 87541] heartbeat
+03:43:25.834 [app 87541] heartbeat
+03:43:26.835 [app 87541] heartbeat
+03:43:27.834 [app 87541] heartbeat
+03:43:28.835 [app 87541] heartbeat
+03:43:29.834 [app 87541] heartbeat
+03:43:30.835 [app 87541] heartbeat
+03:43:31.635 [app 87541] coord: refreshed gen 0 -> 1
+03:43:31.777 [app 87541] loop end
+03:43:31.834 [app 87541] heartbeat
+03:44:00.078 [ext 81662] ext loaded; keychain token gen=1 mode=coord
+03:44:00.079 [ext 81662] loop start mode=coord n=1
+03:44:00.087 [ext 81662] coordinator acquired after 7 ms
+03:44:15.101 [ext 81662] coord: refreshed gen 1 -> 2
+03:44:15.288 [ext 81662] loop end
+
+## server log
+03:43:14.795 ISSUE family=813e7219
+03:43:16.626 ok   app gen 0 -> 1
+03:44:00.091 ok   ext gen 1 -> 2
+
+## server stats
+{"ok":2,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1","d6568c46"]}

@@ -1,0 +1,35 @@
+## client log (app + extension, with heartbeats)
+03:32:17.094 [app 81250] reset: stored gen 0
+03:32:17.101 [app 81250] launched; keychain token gen=0 mode=flock
+03:32:17.102 [app 81250] waiting 2 s for the shared start
+03:32:18.101 [app 81250] heartbeat
+03:32:19.102 [app 81250] heartbeat
+03:32:19.937 [app 81250] loop start mode=flock n=1
+03:32:19.941 [app 81250] flock acquired after 0 ms
+03:32:20.101 [app 81250] heartbeat
+03:32:21.102 [app 81250] heartbeat
+03:32:22.101 [app 81250] heartbeat
+03:32:23.102 [app 81250] heartbeat
+03:32:24.101 [app 81250] heartbeat
+03:32:25.102 [app 81250] heartbeat
+03:32:26.102 [app 81250] heartbeat
+03:32:27.102 [app 81250] heartbeat
+03:32:28.102 [app 81250] heartbeat
+03:32:29.102 [app 81250] heartbeat
+03:32:30.102 [app 81250] heartbeat
+03:32:31.102 [app 81250] heartbeat
+03:32:32.622 [app 81250] heartbeat
+03:32:33.102 [app 81250] heartbeat
+03:33:24.473 [ext 81662] ext loaded; keychain token gen=0 mode=flock
+03:33:24.474 [ext 81662] loop start mode=flock n=1
+03:34:02.249 [ext 81662] flock acquired after 37772 ms
+03:34:17.435 [ext 81662] flock: FAILED 400 reuse_revoked_family
+03:34:17.586 [ext 81662] loop end
+
+## server log
+03:32:17.046 ISSUE family=3d2461c1
+03:32:19.947 ok   app gen 0 -> 1
+03:34:02.418 !!! REUSE by ext of gen=0 -> family 3d2461c1 REVOKED
+
+## server stats
+{"ok":1,"reuse":1,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1"]}

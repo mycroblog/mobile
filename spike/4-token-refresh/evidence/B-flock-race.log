@@ -1,0 +1,116 @@
+## client log (app + extension, heartbeats removed)
+03:30:01.179 [app 80146] reset: stored gen 0
+03:30:01.223 [app 80146] launched; keychain token gen=0 mode=flock
+03:30:01.224 [app 80146] waiting 37 s for the shared start
+03:30:34.962 [ext 80424] ext loaded; keychain token gen=0 mode=flock
+03:30:34.979 [ext 80424] waiting 4 s for the shared start
+03:30:39.091 [app 80146] loop start mode=flock n=20
+03:30:39.096 [ext 80424] loop start mode=flock n=20
+03:30:39.099 [ext 80424] flock acquired after 0 ms
+03:30:39.706 [ext 80424] flock: refreshed gen 0 -> 1
+03:30:39.707 [app 80146] flock acquired after 605 ms
+03:30:39.708 [app 80146] flock: already refreshed by another process (gen 1), using it
+03:30:39.824 [app 80146] flock acquired after 0 ms
+03:30:40.152 [app 80146] flock: refreshed gen 1 -> 2
+03:30:40.152 [ext 80424] flock acquired after 326 ms
+03:30:40.153 [ext 80424] flock: already refreshed by another process (gen 2), using it
+03:30:40.265 [ext 80424] flock acquired after 0 ms
+03:30:40.576 [ext 80424] flock: refreshed gen 2 -> 3
+03:30:40.577 [app 80146] flock acquired after 269 ms
+03:30:40.578 [app 80146] flock: already refreshed by another process (gen 3), using it
+03:30:40.689 [app 80146] flock acquired after 0 ms
+03:30:41.001 [app 80146] flock: refreshed gen 3 -> 4
+03:30:41.002 [ext 80424] flock acquired after 226 ms
+03:30:41.004 [ext 80424] flock: already refreshed by another process (gen 4), using it
+03:30:41.171 [ext 80424] flock acquired after 0 ms
+03:30:41.483 [ext 80424] flock: refreshed gen 4 -> 5
+03:30:41.484 [app 80146] flock acquired after 287 ms
+03:30:41.486 [app 80146] flock: already refreshed by another process (gen 5), using it
+03:30:41.669 [ext 80424] flock acquired after 0 ms
+03:30:41.979 [ext 80424] flock: refreshed gen 5 -> 6
+03:30:41.979 [app 80146] flock acquired after 294 ms
+03:30:41.981 [app 80146] flock: already refreshed by another process (gen 6), using it
+03:30:42.090 [app 80146] flock acquired after 0 ms
+03:30:42.401 [app 80146] flock: refreshed gen 6 -> 7
+03:30:42.402 [ext 80424] flock acquired after 236 ms
+03:30:42.404 [ext 80424] flock: already refreshed by another process (gen 7), using it
+03:30:42.544 [app 80146] flock acquired after 0 ms
+03:30:42.859 [app 80146] flock: refreshed gen 7 -> 8
+03:30:42.860 [ext 80424] flock acquired after 272 ms
+03:30:42.862 [ext 80424] flock: already refreshed by another process (gen 8), using it
+03:30:43.030 [app 80146] flock acquired after 0 ms
+03:30:43.353 [app 80146] flock: refreshed gen 8 -> 9
+03:30:43.354 [ext 80424] flock acquired after 324 ms
+03:30:43.356 [ext 80424] flock: already refreshed by another process (gen 9), using it
+03:30:43.534 [app 80146] flock acquired after 0 ms
+03:30:43.848 [app 80146] flock: refreshed gen 9 -> 10
+03:30:43.849 [ext 80424] flock acquired after 306 ms
+03:30:43.851 [ext 80424] flock: already refreshed by another process (gen 10), using it
+03:30:43.983 [ext 80424] flock acquired after 0 ms
+03:30:44.322 [ext 80424] flock: refreshed gen 10 -> 11
+03:30:44.322 [app 80146] flock acquired after 280 ms
+03:30:44.325 [app 80146] flock: already refreshed by another process (gen 11), using it
+03:30:44.463 [ext 80424] flock acquired after 0 ms
+03:30:44.804 [ext 80424] flock: refreshed gen 11 -> 12
+03:30:44.805 [app 80146] flock acquired after 314 ms
+03:30:44.807 [app 80146] flock: already refreshed by another process (gen 12), using it
+03:30:44.949 [ext 80424] flock acquired after 0 ms
+03:30:45.270 [ext 80424] flock: refreshed gen 12 -> 13
+03:30:45.271 [app 80146] flock acquired after 290 ms
+03:30:45.273 [app 80146] flock: already refreshed by another process (gen 13), using it
+03:30:45.382 [ext 80424] flock acquired after 0 ms
+03:30:45.698 [ext 80424] flock: refreshed gen 13 -> 14
+03:30:45.699 [app 80146] flock acquired after 238 ms
+03:30:45.701 [app 80146] flock: already refreshed by another process (gen 14), using it
+03:30:45.843 [app 80146] flock acquired after 0 ms
+03:30:46.162 [app 80146] flock: refreshed gen 14 -> 15
+03:30:46.162 [ext 80424] flock acquired after 273 ms
+03:30:46.164 [ext 80424] flock: already refreshed by another process (gen 15), using it
+03:30:46.303 [ext 80424] flock acquired after 0 ms
+03:30:46.672 [ext 80424] flock: refreshed gen 15 -> 16
+03:30:46.672 [app 80146] flock acquired after 326 ms
+03:30:46.674 [app 80146] flock: already refreshed by another process (gen 16), using it
+03:30:46.823 [app 80146] flock acquired after 0 ms
+03:30:47.149 [app 80146] flock: refreshed gen 16 -> 17
+03:30:47.150 [ext 80424] flock acquired after 281 ms
+03:30:47.152 [ext 80424] flock: already refreshed by another process (gen 17), using it
+03:30:47.285 [app 80146] flock acquired after 0 ms
+03:30:47.691 [app 80146] flock: refreshed gen 17 -> 18
+03:30:47.692 [ext 80424] flock acquired after 405 ms
+03:30:47.695 [ext 80424] flock: already refreshed by another process (gen 18), using it
+03:30:47.796 [app 80146] flock acquired after 0 ms
+03:30:48.208 [app 80146] flock: refreshed gen 18 -> 19
+03:30:48.209 [ext 80424] flock acquired after 315 ms
+03:30:48.211 [ext 80424] flock: already refreshed by another process (gen 19), using it
+03:30:48.312 [app 80146] flock acquired after 0 ms
+03:30:48.670 [app 80146] flock: refreshed gen 19 -> 20
+03:30:48.670 [ext 80424] flock acquired after 269 ms
+03:30:48.671 [ext 80424] flock: already refreshed by another process (gen 20), using it
+03:30:48.784 [ext 80424] loop end
+03:30:48.855 [app 80146] loop end
+
+## server log
+03:30:01.022 ISSUE family=f955ca8f
+03:30:39.353 ok   ext gen 0 -> 1
+03:30:39.840 ok   app gen 1 -> 2
+03:30:40.270 ok   ext gen 2 -> 3
+03:30:40.694 ok   app gen 3 -> 4
+03:30:41.174 ok   ext gen 4 -> 5
+03:30:41.673 ok   ext gen 5 -> 6
+03:30:42.093 ok   app gen 6 -> 7
+03:30:42.551 ok   app gen 7 -> 8
+03:30:43.039 ok   app gen 8 -> 9
+03:30:43.537 ok   app gen 9 -> 10
+03:30:43.989 ok   ext gen 10 -> 11
+03:30:44.489 ok   ext gen 11 -> 12
+03:30:44.964 ok   ext gen 12 -> 13
+03:30:45.391 ok   ext gen 13 -> 14
+03:30:45.852 ok   app gen 14 -> 15
+03:30:46.328 ok   ext gen 15 -> 16
+03:30:46.839 ok   app gen 16 -> 17
+03:30:47.304 ok   app gen 17 -> 18
+03:30:47.884 ok   app gen 18 -> 19
+03:30:48.339 ok   app gen 19 -> 20
+
+## server stats
+{"ok":20,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0"]}

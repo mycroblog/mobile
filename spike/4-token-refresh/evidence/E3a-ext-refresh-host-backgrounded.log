@@ -1,0 +1,77 @@
+## client log (app + extension, with heartbeats)
+03:38:06.309 [app 84127] reset: stored gen 0
+03:38:06.344 [app 84127] launched; keychain token gen=0 mode=lease
+03:38:07.785 [app 84127] heartbeat
+03:38:08.347 [app 84127] heartbeat
+03:38:09.347 [app 84127] heartbeat
+03:38:10.347 [app 84127] heartbeat
+03:38:11.347 [app 84127] heartbeat
+03:38:12.347 [app 84127] heartbeat
+03:38:13.347 [app 84127] heartbeat
+03:38:14.350 [app 84127] heartbeat
+03:38:16.661 [app 84127] heartbeat
+03:38:31.596 [ext 81662] ext loaded; keychain token gen=0 mode=lease
+03:38:31.597 [ext 81662] loop start mode=lease n=1
+03:38:31.601 [ext 81662] lease acquired after 1 ms
+03:38:38.629 [app 84127] heartbeat
+03:38:39.351 [app 84127] heartbeat
+03:38:40.350 [app 84127] heartbeat
+03:38:41.348 [app 84127] heartbeat
+03:38:42.348 [app 84127] heartbeat
+03:38:43.348 [app 84127] heartbeat
+03:38:44.348 [app 84127] heartbeat
+03:38:45.348 [app 84127] heartbeat
+03:38:46.348 [app 84127] heartbeat
+03:38:47.348 [app 84127] heartbeat
+03:38:48.348 [app 84127] heartbeat
+03:38:49.348 [app 84127] heartbeat
+03:38:50.348 [app 84127] heartbeat
+03:38:51.348 [app 84127] heartbeat
+03:38:51.704 [ext 81662] lease: refreshed gen 0 -> 1
+03:38:51.877 [ext 81662] loop end
+03:38:52.348 [app 84127] heartbeat
+03:38:53.348 [app 84127] heartbeat
+03:38:54.348 [app 84127] heartbeat
+03:38:55.348 [app 84127] heartbeat
+03:38:56.348 [app 84127] heartbeat
+03:38:57.348 [app 84127] heartbeat
+03:38:58.348 [app 84127] heartbeat
+03:38:59.348 [app 84127] heartbeat
+03:39:00.348 [app 84127] heartbeat
+03:39:01.348 [app 84127] heartbeat
+03:39:02.348 [app 84127] heartbeat
+03:39:03.348 [app 84127] heartbeat
+03:39:04.348 [app 84127] heartbeat
+03:39:05.348 [app 84127] heartbeat
+03:39:06.348 [app 84127] heartbeat
+03:39:07.348 [app 84127] heartbeat
+03:39:08.348 [app 84127] heartbeat
+03:39:09.348 [app 84127] heartbeat
+03:39:10.348 [app 84127] heartbeat
+03:39:11.348 [app 84127] heartbeat
+03:39:12.348 [app 84127] heartbeat
+03:39:13.348 [app 84127] heartbeat
+03:39:14.348 [app 84127] heartbeat
+03:39:15.348 [app 84127] heartbeat
+03:39:16.348 [app 84127] heartbeat
+03:39:17.349 [app 84127] heartbeat
+03:39:18.349 [app 84127] heartbeat
+03:39:19.349 [app 84127] heartbeat
+03:39:20.349 [app 84127] heartbeat
+03:39:21.349 [app 84127] heartbeat
+03:39:22.349 [app 84127] heartbeat
+03:39:23.349 [app 84127] heartbeat
+03:39:24.349 [app 84127] heartbeat
+03:39:25.349 [app 84127] heartbeat
+03:39:26.349 [app 84127] heartbeat
+03:39:27.349 [app 84127] heartbeat
+03:39:28.349 [app 84127] heartbeat
+03:39:29.349 [app 84127] heartbeat
+03:39:30.349 [app 84127] heartbeat
+
+## server log
+03:38:06.282 ISSUE family=8d1d7f1d
+03:38:31.661 ok   ext gen 0 -> 1
+
+## server stats
+{"ok":1,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1"]}

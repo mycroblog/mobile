@@ -1,0 +1,116 @@
+## client log (app + extension, heartbeats removed)
+03:31:07.538 [app 80718] reset: stored gen 0
+03:31:07.542 [app 80718] launched; keychain token gen=0 mode=coord
+03:31:07.543 [app 80718] waiting 39 s for the shared start
+03:31:30.577 [ext 80884] ext loaded; keychain token gen=0 mode=coord
+03:31:30.581 [ext 80884] waiting 16 s for the shared start
+03:31:47.452 [app 80718] loop start mode=coord n=20
+03:31:47.454 [ext 80884] loop start mode=coord n=20
+03:31:47.515 [app 80718] coordinator acquired after 53 ms
+03:31:48.624 [app 80718] coord: refreshed gen 0 -> 1
+03:31:48.650 [ext 80884] coordinator acquired after 1187 ms
+03:31:48.653 [ext 80884] coord: already refreshed by another process (gen 1), using it
+03:31:48.778 [app 80718] coordinator acquired after 38 ms
+03:31:49.665 [app 80718] coord: refreshed gen 1 -> 2
+03:31:49.674 [ext 80884] coordinator acquired after 909 ms
+03:31:49.677 [ext 80884] coord: already refreshed by another process (gen 2), using it
+03:31:49.802 [app 80718] coordinator acquired after 22 ms
+03:31:50.339 [app 80718] coord: refreshed gen 2 -> 3
+03:31:50.347 [ext 80884] coordinator acquired after 531 ms
+03:31:50.351 [ext 80884] coord: already refreshed by another process (gen 3), using it
+03:31:50.473 [app 80718] coordinator acquired after 10 ms
+03:31:51.014 [app 80718] coord: refreshed gen 3 -> 4
+03:31:51.025 [ext 80884] coordinator acquired after 471 ms
+03:31:51.030 [ext 80884] coord: already refreshed by another process (gen 4), using it
+03:31:51.155 [ext 80884] coordinator acquired after 7 ms
+03:31:51.591 [ext 80884] coord: refreshed gen 4 -> 5
+03:31:51.598 [app 80718] coordinator acquired after 402 ms
+03:31:51.603 [app 80718] coord: already refreshed by another process (gen 5), using it
+03:31:51.717 [ext 80884] coordinator acquired after 11 ms
+03:31:52.229 [ext 80884] coord: refreshed gen 5 -> 6
+03:31:52.235 [app 80718] coordinator acquired after 475 ms
+03:31:52.238 [app 80718] coord: already refreshed by another process (gen 6), using it
+03:31:52.404 [app 80718] coordinator acquired after 10 ms
+03:31:52.735 [app 80718] coord: refreshed gen 6 -> 7
+03:31:52.740 [ext 80884] coordinator acquired after 344 ms
+03:31:52.741 [ext 80884] coord: already refreshed by another process (gen 7), using it
+03:31:52.892 [ext 80884] coordinator acquired after 6 ms
+03:31:53.241 [ext 80884] coord: refreshed gen 7 -> 8
+03:31:53.246 [app 80718] coordinator acquired after 355 ms
+03:31:53.247 [app 80718] coord: already refreshed by another process (gen 8), using it
+03:31:53.355 [ext 80884] coordinator acquired after 6 ms
+03:31:53.687 [ext 80884] coord: refreshed gen 8 -> 9
+03:31:53.692 [app 80718] coordinator acquired after 313 ms
+03:31:53.694 [app 80718] coord: already refreshed by another process (gen 9), using it
+03:31:53.826 [app 80718] coordinator acquired after 5 ms
+03:31:54.149 [app 80718] coord: refreshed gen 9 -> 10
+03:31:54.155 [ext 80884] coordinator acquired after 299 ms
+03:31:54.157 [ext 80884] coord: already refreshed by another process (gen 10), using it
+03:31:54.351 [ext 80884] coordinator acquired after 18 ms
+03:31:54.720 [ext 80884] coord: refreshed gen 10 -> 11
+03:31:54.725 [app 80718] coordinator acquired after 381 ms
+03:31:54.726 [app 80718] coord: already refreshed by another process (gen 11), using it
+03:31:54.853 [app 80718] coordinator acquired after 6 ms
+03:31:55.181 [app 80718] coord: refreshed gen 11 -> 12
+03:31:55.189 [ext 80884] coordinator acquired after 269 ms
+03:31:55.191 [ext 80884] coord: already refreshed by another process (gen 12), using it
+03:31:55.319 [app 80718] coordinator acquired after 6 ms
+03:31:55.773 [app 80718] coord: refreshed gen 12 -> 13
+03:31:55.778 [ext 80884] coordinator acquired after 390 ms
+03:31:55.779 [ext 80884] coord: already refreshed by another process (gen 13), using it
+03:31:55.964 [ext 80884] coordinator acquired after 11 ms
+03:31:56.284 [ext 80884] coord: refreshed gen 13 -> 14
+03:31:56.294 [app 80718] coordinator acquired after 327 ms
+03:31:56.296 [app 80718] coord: already refreshed by another process (gen 14), using it
+03:31:56.464 [ext 80884] coordinator acquired after 10 ms
+03:31:56.934 [ext 80884] coord: refreshed gen 14 -> 15
+03:31:56.939 [app 80718] coordinator acquired after 443 ms
+03:31:56.940 [app 80718] coord: already refreshed by another process (gen 15), using it
+03:31:57.100 [ext 80884] coordinator acquired after 7 ms
+03:31:57.435 [ext 80884] coord: refreshed gen 15 -> 16
+03:31:57.442 [app 80718] coordinator acquired after 331 ms
+03:31:57.444 [app 80718] coord: already refreshed by another process (gen 16), using it
+03:31:57.580 [ext 80884] coordinator acquired after 7 ms
+03:31:57.910 [ext 80884] coord: refreshed gen 16 -> 17
+03:31:57.914 [app 80718] coordinator acquired after 281 ms
+03:31:57.916 [app 80718] coord: already refreshed by another process (gen 17), using it
+03:31:58.028 [ext 80884] coordinator acquired after 8 ms
+03:31:58.339 [ext 80884] coord: refreshed gen 17 -> 18
+03:31:58.343 [app 80718] coordinator acquired after 274 ms
+03:31:58.344 [app 80718] coord: already refreshed by another process (gen 18), using it
+03:31:58.502 [app 80718] coordinator acquired after 9 ms
+03:31:58.815 [app 80718] coord: refreshed gen 18 -> 19
+03:31:58.821 [ext 80884] coordinator acquired after 324 ms
+03:31:58.822 [ext 80884] coord: already refreshed by another process (gen 19), using it
+03:31:58.925 [app 80718] coordinator acquired after 6 ms
+03:31:59.235 [app 80718] coord: refreshed gen 19 -> 20
+03:31:59.241 [ext 80884] coordinator acquired after 238 ms
+03:31:59.242 [ext 80884] coord: already refreshed by another process (gen 20), using it
+03:31:59.380 [app 80718] loop end
+03:31:59.380 [ext 80884] loop end
+
+## server log
+03:31:07.529 ISSUE family=07c71fc7
+03:31:47.957 ok   app gen 0 -> 1
+03:31:49.289 ok   app gen 1 -> 2
+03:31:49.959 ok   app gen 2 -> 3
+03:31:50.633 ok   app gen 3 -> 4
+03:31:51.257 ok   ext gen 4 -> 5
+03:31:51.909 ok   ext gen 5 -> 6
+03:31:52.424 ok   app gen 6 -> 7
+03:31:52.928 ok   ext gen 7 -> 8
+03:31:53.369 ok   ext gen 8 -> 9
+03:31:53.842 ok   app gen 9 -> 10
+03:31:54.385 ok   ext gen 10 -> 11
+03:31:54.868 ok   app gen 11 -> 12
+03:31:55.402 ok   app gen 12 -> 13
+03:31:55.975 ok   ext gen 13 -> 14
+03:31:56.625 ok   ext gen 14 -> 15
+03:31:57.121 ok   ext gen 15 -> 16
+03:31:57.596 ok   ext gen 16 -> 17
+03:31:58.031 ok   ext gen 17 -> 18
+03:31:58.507 ok   app gen 18 -> 19
+03:31:58.929 ok   app gen 19 -> 20
+
+## server stats
+{"ok":20,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0"]}

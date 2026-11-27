@@ -1,0 +1,64 @@
+## client log (app + extension, with heartbeats)
+03:44:40.300 [app 88188] reset: stored gen 0
+03:44:40.304 [app 88188] launched; keychain token gen=0 mode=coord
+03:44:40.304 [app 88188] waiting 1 s for the shared start
+03:44:41.305 [app 88188] heartbeat
+03:44:42.236 [app 88188] loop start mode=coord n=1
+03:44:42.246 [app 88188] coordinator acquired after 7 ms
+03:44:42.305 [app 88188] heartbeat
+03:44:43.305 [app 88188] heartbeat
+03:44:44.305 [app 88188] heartbeat
+03:44:45.305 [app 88188] heartbeat
+03:44:46.305 [app 88188] heartbeat
+03:44:47.305 [app 88188] heartbeat
+03:44:48.436 [app 88188] heartbeat
+03:44:49.308 [app 88188] heartbeat
+03:44:50.306 [app 88188] heartbeat
+03:44:51.306 [app 88188] heartbeat
+03:44:52.309 [app 88188] heartbeat
+03:44:53.309 [app 88188] heartbeat
+03:44:54.306 [app 88188] heartbeat
+03:44:55.306 [app 88188] heartbeat
+03:44:56.308 [app 88188] heartbeat
+03:44:57.306 [app 88188] heartbeat
+03:44:58.306 [app 88188] heartbeat
+03:44:59.308 [app 88188] heartbeat
+03:45:00.308 [app 88188] heartbeat
+03:45:01.306 [app 88188] heartbeat
+03:45:02.306 [app 88188] heartbeat
+03:45:03.306 [app 88188] heartbeat
+03:45:04.306 [app 88188] heartbeat
+03:45:05.306 [app 88188] heartbeat
+03:45:06.306 [app 88188] heartbeat
+03:45:07.308 [app 88188] heartbeat
+03:45:08.306 [app 88188] heartbeat
+03:45:09.306 [app 88188] heartbeat
+03:45:10.306 [app 88188] heartbeat
+03:45:11.306 [app 88188] heartbeat
+03:45:12.306 [app 88188] heartbeat
+03:45:13.308 [app 88188] heartbeat
+03:45:14.306 [app 88188] heartbeat
+03:45:15.307 [app 88188] heartbeat
+03:45:16.306 [app 88188] heartbeat
+03:45:17.306 [app 88188] heartbeat
+03:45:18.306 [app 88188] heartbeat
+03:45:19.306 [app 88188] heartbeat
+03:46:19.640 [app 89061] launched; keychain token gen=0 mode=none
+03:46:20.646 [app 89061] heartbeat
+03:46:21.645 [app 89061] heartbeat
+03:46:22.646 [app 89061] heartbeat
+03:46:23.646 [app 89061] heartbeat
+03:46:24.646 [app 89061] heartbeat
+03:46:25.646 [app 89061] heartbeat
+03:46:26.646 [app 89061] heartbeat
+03:46:27.646 [app 89061] heartbeat
+03:46:28.645 [app 89061] heartbeat
+03:46:29.646 [app 89061] heartbeat
+03:46:30.646 [app 89061] heartbeat
+
+## server log
+03:44:40.295 ISSUE family=dec9ae84
+03:44:42.262 ok   app gen 0 -> 1
+
+## server stats
+{"ok":1,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1","d6568c46"]}

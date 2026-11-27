@@ -1,0 +1,44 @@
+## client log (app + extension, with heartbeats)
+03:36:37.196 [app 83504] reset: stored gen 0
+03:36:37.209 [app 83504] launched; keychain token gen=0 mode=lease
+03:36:37.209 [app 83504] waiting 1 s for the shared start
+03:36:38.240 [app 83504] heartbeat
+03:36:39.048 [app 83504] loop start mode=lease n=1
+03:36:39.060 [app 83504] lease acquired after 3 ms
+03:36:39.210 [app 83504] heartbeat
+03:36:40.210 [app 83504] heartbeat
+03:36:41.210 [app 83504] heartbeat
+03:36:42.210 [app 83504] heartbeat
+03:36:43.210 [app 83504] heartbeat
+03:36:44.209 [app 83504] heartbeat
+03:36:45.210 [app 83504] heartbeat
+03:36:46.699 [app 83504] heartbeat
+03:36:48.784 [app 83504] heartbeat
+03:36:51.094 [app 83504] heartbeat
+03:36:52.397 [app 83504] heartbeat
+03:36:53.365 [app 83504] heartbeat
+03:36:54.419 [app 83504] heartbeat
+03:36:56.181 [app 83504] heartbeat
+03:36:58.373 [app 83504] heartbeat
+03:36:59.499 [app 83504] heartbeat
+03:37:00.294 [app 83504] heartbeat
+03:37:01.311 [app 83504] heartbeat
+03:37:02.344 [app 83504] heartbeat
+03:37:03.368 [app 83504] heartbeat
+03:37:04.324 [app 83504] heartbeat
+03:37:04.656 [app 83504] lease: refreshed gen 0 -> 1
+03:37:05.116 [app 83504] loop end
+03:37:05.339 [app 83504] heartbeat
+03:37:11.998 [ext 81662] ext loaded; keychain token gen=1 mode=lease
+03:37:11.999 [ext 81662] loop start mode=lease n=1
+03:37:12.006 [ext 81662] lease acquired after 5 ms
+03:37:37.132 [ext 81662] lease: refreshed gen 1 -> 2
+03:37:37.275 [ext 81662] loop end
+
+## server log
+03:36:37.178 ISSUE family=5d0d6a1b
+03:36:39.118 ok   app gen 0 -> 1
+03:37:12.045 ok   ext gen 1 -> 2
+
+## server stats
+{"ok":2,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1"]}

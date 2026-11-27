@@ -1,0 +1,33 @@
+## client log (app + extension, with heartbeats)
+03:35:50.010 [app 82333] heartbeat
+03:35:53.261 [app 83131] reset: stored gen 0
+03:35:53.292 [app 83131] launched; keychain token gen=0 mode=lease
+03:35:53.292 [app 83131] waiting 1 s for the shared start
+03:35:54.706 [app 83131] heartbeat
+03:35:54.929 [app 83131] loop start mode=lease n=1
+03:35:54.933 [app 83131] lease acquired after 1 ms
+03:35:55.293 [app 83131] heartbeat
+03:35:56.292 [app 83131] heartbeat
+03:35:57.294 [app 83131] heartbeat
+03:35:58.293 [app 83131] heartbeat
+03:35:59.292 [app 83131] heartbeat
+03:36:00.293 [app 83131] heartbeat
+03:36:02.327 [app 83131] heartbeat
+03:36:03.395 [app 83131] heartbeat
+03:36:04.394 [app 83131] heartbeat
+03:36:05.384 [app 83131] heartbeat
+03:36:06.407 [app 83131] heartbeat
+03:36:07.393 [app 83131] heartbeat
+03:36:08.387 [app 83131] heartbeat
+03:36:09.388 [app 83131] heartbeat
+03:36:10.035 [app 83131] lease: refreshed gen 0 -> 1
+03:36:10.239 [app 83131] loop end
+03:36:10.394 [app 83131] heartbeat
+03:36:11.491 [app 83131] heartbeat
+
+## server log
+03:35:53.209 ISSUE family=93713c6e
+03:35:54.945 ok   app gen 0 -> 1
+
+## server stats
+{"ok":1,"reuse":0,"afterRevoke":0,"revokedFamilies":["affb17d0","3d2461c1"]}

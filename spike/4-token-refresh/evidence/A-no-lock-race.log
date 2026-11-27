@@ -1,0 +1,57 @@
+## client log (app + extension, heartbeats removed)
+03:25:33.062 [app 77402] none: refreshed gen 1 -> 2
+03:25:35.553 [app 77507] reset: stored gen 0
+03:25:35.558 [app 77507] launched; keychain token gen=0 mode=none
+03:25:35.559 [app 77507] waiting 44 s for the shared start
+03:25:51.920 [ext 77579] ext loaded; keychain token gen=0 mode=none
+03:25:51.922 [ext 77579] waiting 28 s for the shared start
+03:26:20.444 [app 77507] loop start mode=none n=10
+03:26:20.446 [ext 77579] loop start mode=none n=10
+03:26:21.107 [ext 77579] none: FAILED 400 reuse_revoked_family
+03:26:21.114 [app 77507] none: refreshed gen 0 -> 1
+03:26:21.633 [ext 77579] none: FAILED 400 family_revoked
+03:26:21.726 [app 77507] none: FAILED 400 family_revoked
+03:26:22.224 [ext 77579] none: FAILED 400 family_revoked
+03:26:22.314 [app 77507] none: FAILED 400 family_revoked
+03:26:22.739 [ext 77579] none: FAILED 400 family_revoked
+03:26:22.928 [app 77507] none: FAILED 400 family_revoked
+03:26:23.296 [ext 77579] none: FAILED 400 family_revoked
+03:26:23.476 [app 77507] none: FAILED 400 family_revoked
+03:26:23.909 [ext 77579] none: FAILED 400 family_revoked
+03:26:23.998 [app 77507] none: FAILED 400 family_revoked
+03:26:24.441 [ext 77579] none: FAILED 400 family_revoked
+03:26:24.610 [app 77507] none: FAILED 400 family_revoked
+03:26:25.004 [ext 77579] none: FAILED 400 family_revoked
+03:26:25.161 [app 77507] none: FAILED 400 family_revoked
+03:26:25.566 [ext 77579] none: FAILED 400 family_revoked
+03:26:25.714 [app 77507] none: FAILED 400 family_revoked
+03:26:26.147 [ext 77579] none: FAILED 400 family_revoked
+03:26:26.247 [app 77507] none: FAILED 400 family_revoked
+03:26:26.453 [ext 77579] loop end
+03:26:26.514 [app 77507] loop end
+
+## server log
+03:25:35.547 ISSUE family=affb17d0
+03:26:20.782 ok   app gen 0 -> 1
+03:26:20.792 !!! REUSE by ext of gen=0 -> family affb17d0 REVOKED
+03:26:21.330 fail ext gen=1 family already revoked
+03:26:21.421 fail app gen=1 family already revoked
+03:26:21.915 fail ext gen=1 family already revoked
+03:26:22.012 fail app gen=1 family already revoked
+03:26:22.436 fail ext gen=1 family already revoked
+03:26:22.625 fail app gen=1 family already revoked
+03:26:22.993 fail ext gen=1 family already revoked
+03:26:23.173 fail app gen=1 family already revoked
+03:26:23.606 fail ext gen=1 family already revoked
+03:26:23.695 fail app gen=1 family already revoked
+03:26:24.138 fail ext gen=1 family already revoked
+03:26:24.307 fail app gen=1 family already revoked
+03:26:24.702 fail ext gen=1 family already revoked
+03:26:24.858 fail app gen=1 family already revoked
+03:26:25.263 fail ext gen=1 family already revoked
+03:26:25.410 fail app gen=1 family already revoked
+03:26:25.844 fail ext gen=1 family already revoked
+03:26:25.945 fail app gen=1 family already revoked
+
+## server stats
+{"ok":1,"reuse":1,"afterRevoke":18,"revokedFamilies":["affb17d0"]}

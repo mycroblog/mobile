@@ -1,0 +1,11 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-27 12:45:14.657 Df runningboardd[72416:6f5a7] [com.apple.runningboard:process] Assertions for process will expire soon: [app<org.mycroblog.spike4((null))>:88188]
+2026-11-27 12:45:14.657 Df runningboardd[72416:6fd42] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<org.mycroblog.spike4((null))>:88188] from originator [osservice<com.apple.runningboardd>:72416] with description <RBSAssertionDescriptor| "Will expire assertions soon" ID:72416-72416-6003 target:88188 attributes:[
+	<RBSCPUAccessGrant| role:NonUserInteractive>,
+	<RBSDurationAttribute| invalidationDuration:3.90 warningDuration:0.00 startPolicy:Delayed-Fixed endPolicy:Invalidate>,
+	<RBSRunningReasonAttribute| runningReason:10101>
+	]>
+2026-11-27 12:45:14.660 Df runningboardd[72416:6fd42] [com.apple.runningboard:process] Assertions for process will expire soon: [app<org.mycroblog.spike4((null))>:88188]
+2026-11-27 12:45:19.552 Df runningboardd[72416:6fd42] [com.apple.runningboard:assertion] Assertion did invalidate due to timeout: 72416-72416-6003 (target:[app<org.mycroblog.spike4((null))>:88188])
+2026-11-27 12:45:19.552 Df runningboardd[72416:6fd42] [com.apple.runningboard:assertion] Assertion did invalidate due to timeout: 72416-73027-5991 (target:[app<org.mycroblog.spike4((null))>:88188])
+2026-11-27 12:45:19.751 Df runningboardd[72416:6fd44] [com.apple.runningboard:process] [app<org.mycroblog.spike4((null))>:88188] Terminating with context: <RBSTerminateContext| code:0x2182BAAD explanation:Timed-out waiting for process [osservice<com.apple.FileCoordination>:73027] to invalidate assertion with identifier 72416-73027-5991 and explanation 'File Coordination Claim 0C10DB2A-6940-4809-A172-B139BDE13B4E'. Direct this report to owners of that process reportType:None maxTerminationResistance:Interactive>
