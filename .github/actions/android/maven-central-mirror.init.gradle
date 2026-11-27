@@ -1,0 +1,18 @@
+// Gradle init script of CI (installed by the action of this directory): Maven Central answers 429 to the shared
+// addresses of GitHub's runners, and Google's mirror of Maven Central does not. Every build and included build asks the
+// mirror first, for everything but what only Google's Maven repository holds.
+def mirror = { repositories ->
+  repositories.maven {
+    name = 'MavenCentralMirror'
+    url = 'https://maven-central.storage-download.googleapis.com/maven2/'
+    content {
+      excludeGroupByRegex 'androidx\\..*'
+      excludeGroupByRegex 'com\\.android(\\..*)?'
+      excludeGroupByRegex 'com\\.google\\.android\\..*'
+    }
+  }
+}
+beforeSettings { settings ->
+  mirror(settings.pluginManagement.repositories)
+  mirror(settings.dependencyResolutionManagement.repositories)
+}

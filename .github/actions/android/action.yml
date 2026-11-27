@@ -1,10 +1,15 @@
 # The Android SDK packages that scripts/check/run.sh needs (CONTRIBUTING.md, in the x86_64 image of a Linux runner),
-# and KVM for the emulator.
+# KVM for the emulator, and Google's mirror of Maven Central for Gradle (maven-central-mirror.init.gradle).
 name: Set up the Android SDK
 description: Install the SDK packages and the emulator image of the checks, and let the emulator use KVM
 runs:
   using: composite
   steps:
+    - name: Ask Google's mirror of Maven Central first
+      shell: bash
+      run: |
+        mkdir -p "${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+        cp "$GITHUB_ACTION_PATH/maven-central-mirror.init.gradle" "${GRADLE_USER_HOME:-$HOME/.gradle}/init.d/"
     - name: Let the emulator use KVM
       shell: bash
       run: |
