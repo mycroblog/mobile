@@ -4,13 +4,16 @@
 # its URL; `scripts/my.sh down` stops it; `scripts/my.sh url` prints the URL of the one running.
 #
 # It runs the my commit of shared/api/my-commit, so that the server speaks the API the clients were generated from: a
-# detached worktree of the my checkout (MY, default ../my) in .tmp/my. MY_PORT (default 8790) is its port.
+# detached worktree of the my checkout (MY, default ../my next to the main checkout) in the main checkout's .tmp/my,
+# shared by every worktree of this repository. MY_PORT (default 8790) is its port.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MY="${MY:-$ROOT/../my}"
+# The main checkout, also from a linked worktree: ../my sits next to it, and every worktree shares one local my.
+MAIN="$(dirname "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)")"
+MY="${MY:-$MAIN/../my}"
 PORT="${MY_PORT:-8790}"
-STATE="$ROOT/.tmp"
+STATE="$MAIN/.tmp"
 TREE="$STATE/my"
 PIDFILE="$STATE/my.pid"
 LOG="$STATE/my.log"
