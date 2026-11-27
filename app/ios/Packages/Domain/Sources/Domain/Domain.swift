@@ -1,0 +1,1 @@
+// The domain types of mycroblog: Sendable values that the app and its extensions share (ADR-0007 §1).

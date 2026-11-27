@@ -8,13 +8,18 @@ output: prefixed
 includes:
   docs: ./tasks/docs.yml
   harness: ./tasks/harness.yml
+  ios: ./tasks/ios.yml
   toolchain: ./tasks/toolchain.yml
 
 tasks:
   check:
-    desc: Run every check, each area in parallel, and report every area that fails
+    desc: Run every check, each area in parallel, and report every area that fails; then launch each app on its devices, one after another
     failfast: false
     deps:
       - toolchain:check
       - docs:check
       - harness:check
+      - ios:check
+    # The launches run one after another, after every area has passed: only one simulator or emulator runs at a time.
+    cmds:
+      - task: ios:launch
