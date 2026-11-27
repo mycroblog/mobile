@@ -1,0 +1,4 @@
+harness/.gradle/
+harness/.kotlin/
+harness/build/
+harness/*/build/

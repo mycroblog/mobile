@@ -1,0 +1,34 @@
+> Task :oag:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :oag:compileKotlin UP-TO-DATE
+> Task :oag:compileJava NO-SOURCE
+> Task :oag:processResources NO-SOURCE
+> Task :oag:classes UP-TO-DATE
+> Task :oag:jar
+> Task :oag:processTestResources NO-SOURCE
+> Task :oag:compileTestKotlin
+> Task :oag:compileTestJava NO-SOURCE
+> Task :oag:testClasses UP-TO-DATE
+
+> Task :oag:test
+
+OagRuntimeTest > oneOfWithDiscriminatorDoesNotDecode() STANDARD_OUT
+    decode VoiceSFUNodeMessage: Failure(kotlinx.serialization.json.JsonDecodingException: Serializer for subclass 'candidate' is not found in the polymorphic scope of 'VoiceSFUNodeMessage' at path: $
+    Check if class with serial name 'candidate' exists and serializer is registered in a corresponding SerializersModule.
+    To be registered automatically, class 'candidate' has to be '@Serializable', and the base class 'VoiceSFUNodeMessage' has to be sealed and '@Serializable'.
+    JSON input: {"v":1,"type":"candidate","candidate":"x"})
+
+OagRuntimeTest > oneOfWithDiscriminatorDoesNotDecode() PASSED
+
+OagRuntimeTest > homeTimelineAndProblem() STANDARD_ERROR
+    SLF4J(W): No SLF4J providers were found.
+    SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+    SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+
+OagRuntimeTest > homeTimelineAndProblem() STANDARD_OUT
+    home timeline request URL: https://example.test/api/v1/timelines/home?cursor=a%2Bb%2Fc%3D&limit=20
+
+OagRuntimeTest > homeTimelineAndProblem() PASSED
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 3 executed, 1 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html

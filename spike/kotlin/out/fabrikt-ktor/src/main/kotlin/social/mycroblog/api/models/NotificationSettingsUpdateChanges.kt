@@ -1,0 +1,46 @@
+package social.mycroblog.api.models
+
+import kotlin.Boolean
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * The cells to change; the others keep their values. Each names a row the user gets and a
+ * channel that is not fixed.
+ */
+@Serializable
+public data class NotificationSettingsUpdateChanges(
+  /**
+   * A row of the notification settings: one or more notification types that the user turns on
+   * and off together. The ordinary notifications are one row per type (`mention`, `follow`,
+   * `follow_request`, `follow_accepted`, `boost`, `favourite`, `reaction`, `quote`,
+   * `poll_closed`, `account_moved`, `status`), except `voice`, which is `voice_room_started` and
+   * `voice_room_invited`, `event`, which is the `event_*` types (the email of an `event_reminder`
+   * is sent at once, not after the notification stays unread), and `interaction_request`, which is `reply_request`, `boost_request`,
+   * `quote_request`, `interaction_accepted`, and `interaction_rejected`. `status` and
+   * `interaction_request` have no `email` channel. The moderator notifications are one row per type (`admin_report`,
+   * `admin_sign_up`, `admin_appeal`, `admin_webhook_disabled`, `admin_custom_emoji_request`,
+   * `admin_account_moved`, `admin_service_closure_due`, `admin_error_group`, `admin_hook_failing`, `admin_hook_appeal`,
+   * `admin_domain_list_failing`). The instance's
+   * notices to the user are `moderation` (`moderation_notice`, `report_resolved`,
+   * `appeal_decided`, `relationships_severed`, `custom_emoji_request_decided`,
+   * `hook_appeal_decided`),
+   * `service_closure`, `supporter` (the `supporter_*` types), `announcement`, which the user
+   * turns off in the app (on by default) and which has no `email` channel, and
+   * `auto_delete_limit`, whose app and email channels the user chooses, both on by default, and
+   * `scheduled_status_failed`, which the user turns off in the app (on by default) and which has
+   * no `email` channel.
+   */
+  @SerialName("group")
+  public val group: NotificationGroup,
+  /**
+   * The channel to change.
+   */
+  @SerialName("channel")
+  public val channel: ChangesChannel,
+  /**
+   * Whether the user gets the row's notifications through the channel.
+   */
+  @SerialName("enabled")
+  public val enabled: Boolean,
+)

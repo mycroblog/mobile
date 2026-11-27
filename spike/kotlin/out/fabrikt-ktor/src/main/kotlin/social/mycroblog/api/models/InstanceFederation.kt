@@ -1,0 +1,29 @@
+package social.mycroblog.api.models
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * How the instance federates with other servers, so that clients offer only the
+ * operations on remote accounts and posts that can work.
+ */
+@Serializable
+public data class InstanceFederation(
+  /**
+   * The direction the instance federates in (the instance setting `federation_mode`):
+   *
+   * - `off`: neither way. Following, looking up with `resolve`, and quoting remote
+   *   accounts and posts are refused with the 403 `/api/v1/problems/federation-restricted`.
+   * - `inbound`: the instance follows and reads remote accounts but sends none of the local
+   *   posts, profiles, and reactions out. Favourites, boosts, reactions, and replies to
+   *   remote posts are recorded here but do not reach their servers; quoting a remote post
+   *   is refused with the 403 `/api/v1/problems/federation-restricted`, since the quote
+   *   request cannot be sent.
+   * - `outbound`: the instance delivers the local posts to remote followers but takes none
+   *   of the remote posts and reactions in. Following and resolving remote accounts are
+   *   refused with the 403 `/api/v1/problems/federation-restricted`.
+   * - `both`: both ways.
+   */
+  @SerialName("mode")
+  public val mode: InstanceFederationMode,
+)

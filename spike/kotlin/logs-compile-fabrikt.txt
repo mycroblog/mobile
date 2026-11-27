@@ -1,0 +1,8 @@
+> Task :fabrikt:clean
+> Task :fabrikt:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :fabrikt:compileKotlin
+
+BUILD SUCCESSFUL in 39s
+2 actionable tasks: 2 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html
+elapsed: 40s

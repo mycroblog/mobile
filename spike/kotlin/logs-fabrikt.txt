@@ -1,0 +1,3 @@
+11月 27, 2026 12:41:06 午後 com.cjbooms.fabrikt.cli.CodeGen generate$io_fabrikt_fabrikt
+情報: Generating code and dumping to /Users/sho-kusano/src/github.com/mycroblog/mobile/.claude/worktrees/agent-a04b4b0f04b40bf34/spike/kotlin/out/fabrikt-ktor/
+elapsed: 17s

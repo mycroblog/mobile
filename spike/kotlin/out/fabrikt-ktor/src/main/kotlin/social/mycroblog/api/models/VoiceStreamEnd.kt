@@ -1,0 +1,18 @@
+package social.mycroblog.api.models
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * The data of the `removed`, `replaced`, and `ended` events of a voice chat room stream, after
+ * which the stream ends. The `reason` of `removed` is why the session left the room (`left`,
+ * `moved`, `disconnected`, `removed`, `blocked`, `suspended`, `room_ended`), the one of `replaced` is
+ * `replaced`, and the one of `ended` is why the room ended (`host`, `empty`,
+ * `host_disconnected`, `host_ineligible`, `moderator`, `time_limit`, `disabled`, `host_absent`,
+ * `unattended`).
+ */
+@Serializable
+public data class VoiceStreamEnd(
+  @SerialName("reason")
+  public val reason: VoiceStreamEndReason,
+)

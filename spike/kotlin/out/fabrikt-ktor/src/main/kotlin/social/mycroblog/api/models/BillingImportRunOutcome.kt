@@ -1,0 +1,50 @@
+package social.mycroblog.api.models
+
+import kotlin.String
+import kotlin.collections.Map
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+
+@Serializable(with = BillingImportRunOutcome.Serializer::class)
+public enum class BillingImportRunOutcome(
+  public val `value`: String,
+) {
+  @SerialName("succeeded")
+  SUCCEEDED("succeeded"),
+  @SerialName("failed")
+  FAILED("failed"),
+  @SerialName("UNRECOGNIZED")
+  UNRECOGNIZED("UNRECOGNIZED"),
+  ;
+
+  override fun toString(): String = value
+
+  public object Serializer : KSerializer<BillingImportRunOutcome> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("social.mycroblog.api.models.BillingImportRunOutcome", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, `value`: BillingImportRunOutcome) {
+      encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): BillingImportRunOutcome {
+      val value = decoder.decodeString()
+      val ignoreCase = (decoder as? JsonDecoder)?.json?.configuration?.decodeEnumsCaseInsensitive == true
+      return entries.firstOrNull { it.value.equals(value, ignoreCase) } ?: UNRECOGNIZED
+    }
+  }
+
+  public companion object {
+    private val mapping: Map<String, BillingImportRunOutcome> =
+        entries.associateBy(BillingImportRunOutcome::value)
+
+    public fun fromValue(`value`: String): BillingImportRunOutcome = mapping[value] ?: UNRECOGNIZED
+  }
+}

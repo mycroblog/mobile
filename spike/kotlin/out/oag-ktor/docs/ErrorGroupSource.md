@@ -1,0 +1,14 @@
+
+# ErrorGroupSource
+
+## Enum
+
+
+    * `SERVER` (value: `"server"`)
+
+    * `WEB` (value: `"web"`)
+
+    * `UNKNOWN_DEFAULT_OPEN_API` (value: `"unknown_default_open_api"`)
+
+
+

@@ -1,0 +1,30 @@
+> Task :oag:clean
+> Task :oag:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :oag:compileKotlin
+e: file:///Users/sho-kusano/src/github.com/mycroblog/mobile/.claude/worktrees/agent-a04b4b0f04b40bf34/spike/kotlin/out/oag-ktor/src/main/kotlin/social/mycroblog/api/apis/AdminModerationApi.kt:2066:203 Unresolved reference 'Order'.
+e: file:///Users/sho-kusano/src/github.com/mycroblog/mobile/.claude/worktrees/agent-a04b4b0f04b40bf34/spike/kotlin/out/oag-ktor/src/main/kotlin/social/mycroblog/api/apis/MediaApi.kt:128:228 Unresolved reference 'Purpose'.
+
+> Task :oag:compileKotlin FAILED
+
+[Incubating] Problems report is available at: file:///Users/sho-kusano/src/github.com/mycroblog/mobile/.claude/worktrees/agent-a04b4b0f04b40bf34/spike/kotlin/harness/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':oag:compileKotlin' (registered by plugin 'org.jetbrains.kotlin.jvm').
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Kotlin compiler: UNRESOLVED_REFERENCE
+       Kotlin compiler error
+         Unresolved reference 'Order'.
+         Location: /Users/sho-kusano/src/github.com/mycroblog/mobile/.claude/worktrees/agent-a04b4b0f04b40bf34/spike/kotlin/out/oag-ktor/src/main/kotlin/social/mycroblog/api/apis/AdminModerationApi.kt:2066
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 21s
+2 actionable tasks: 2 executed
+elapsed: 22s

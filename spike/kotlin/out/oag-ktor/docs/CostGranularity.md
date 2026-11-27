@@ -1,0 +1,16 @@
+
+# CostGranularity
+
+## Enum
+
+
+    * `WEEK` (value: `"week"`)
+
+    * `MONTH` (value: `"month"`)
+
+    * `YEAR` (value: `"year"`)
+
+    * `UNKNOWN_DEFAULT_OPEN_API` (value: `"unknown_default_open_api"`)
+
+
+

@@ -1,0 +1,30 @@
+> Task :fabrikt:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :fabrikt:compileKotlin UP-TO-DATE
+> Task :fabrikt:compileJava NO-SOURCE
+> Task :fabrikt:processResources NO-SOURCE
+> Task :fabrikt:classes UP-TO-DATE
+> Task :fabrikt:jar
+> Task :fabrikt:processTestResources NO-SOURCE
+> Task :fabrikt:compileTestKotlin
+> Task :fabrikt:compileTestJava NO-SOURCE
+> Task :fabrikt:testClasses UP-TO-DATE
+
+> Task :fabrikt:test
+
+FabriktRuntimeTest > homeTimelineAndProblem() STANDARD_ERROR
+    SLF4J(W): No SLF4J providers were found.
+    SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+    SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+
+FabriktRuntimeTest > homeTimelineAndProblem() STANDARD_OUT
+    home timeline request URL: http://localhost/api/v1/timelines/home?cursor=a+b/c=
+
+FabriktRuntimeTest > homeTimelineAndProblem() PASSED
+
+FabriktRuntimeTest > oneOfWithDiscriminatorDecodesToTheSubtype() PASSED
+
+FabriktRuntimeTest > unknownDiscriminatorFails() PASSED
+
+BUILD SUCCESSFUL in 2s
+4 actionable tasks: 3 executed, 1 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html
