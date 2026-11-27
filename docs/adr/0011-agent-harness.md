@@ -1,6 +1,6 @@
 # ADR-0011: エージェントのハーネス
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-27
 - Deciders: @rosylilly
 
