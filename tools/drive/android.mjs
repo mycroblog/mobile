@@ -79,6 +79,32 @@ function latestImage(deps, sdk) {
   return `system-images;${last.join(';')}`;
 }
 
+// Waits until the emulator has booted, under one deadline that also covers adb not seeing the device at all (adb's
+// own wait-for-device never gives up). A boot that fails stops the emulator and says what to look at.
+const BOOT_TIMEOUT_MS = 300_000;
+function waitForBoot(ctx, avd, emulatorPid, log) {
+  const { deps } = ctx;
+  const deadline = deps.now().getTime() + BOOT_TIMEOUT_MS;
+  let seen = false;
+  for (;;) {
+    if (!deps.alive(emulatorPid)) {
+      throw new StepError(`the emulator of ${avd} exited while booting: read ${log}, then run "scripts/drive android start" again`);
+    }
+    try {
+      seen = true;
+      if (ctx.shell('getprop', 'sys.boot_completed').trim() === '1') return;
+    } catch {
+      seen = false; // adb does not see the device yet
+    }
+    if (deps.now().getTime() > deadline) {
+      deps.kill(emulatorPid);
+      const where = seen ? 'adb sees it, but it did not finish booting' : 'adb never saw it';
+      throw new StepError(`${avd} did not boot in ${BOOT_TIMEOUT_MS / 60_000} minutes (${where}), so it was stopped: read ${log}, then run "scripts/drive android start" again; if it hangs again, wipe it with "emulator -avd ${avd} -wipe-data" once`);
+    }
+    deps.sh('sleep', ['1']);
+  }
+}
+
 const steps = {
   async start(ctx, _p, flags) {
     const { deps, sdk } = ctx;
@@ -96,16 +122,12 @@ const steps = {
     const device = `emulator-${ctx.consolePort}`;
     // The resizable AVD changes size only through its window, so it keeps one.
     const window = kind === 'resizable' ? [] : ['-no-window'];
+    const log = path.join(deps.stateDir, 'android-emulator.log');
     const emulatorPid = deps.spawnDetached(path.join(sdk, 'emulator/emulator'),
       ['-avd', avd, '-port', String(ctx.consolePort), '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host', ...window],
-      { log: path.join(deps.stateDir, 'android-emulator.log') });
+      { log });
     deps.writeState('android', { kind, device, port: ctx.port, emulatorPid, runnerPid: null, app: null });
-    ctx.adb('wait-for-device');
-    const deadline = Date.now() + 300_000;
-    while (ctx.shell('getprop', 'sys.boot_completed').trim() !== '1') {
-      if (Date.now() > deadline) throw new StepError(`${avd} did not finish booting in 5 minutes`);
-      deps.sh('sleep', ['1']);
-    }
+    waitForBoot(ctx, avd, emulatorPid, log);
     const project = path.join(deps.root, 'tools/drive/android');
     deps.sh(path.join(project, 'gradlew'), ['-q', ':runner:assembleDebug', ':runner:assembleDebugAndroidTest'],
       { cwd: project, env: { ...deps.env, ANDROID_HOME: sdk, JAVA_HOME: javaHome(deps, project) } });

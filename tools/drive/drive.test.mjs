@@ -246,3 +246,30 @@ test('each change on Android runs its adb or runner step', async () => {
     expectRequests(f.calls.send, requests);
   }
 });
+
+test('an emulator that adb never sees fails the start after the boot timeout, and is stopped', async () => {
+  const f = fakeDeps({
+    sh: (cmd, args) => {
+      if (args.includes('-list-avds')) return 'drive-phone\n';
+      if (args.join(' ').includes('getprop')) throw new Error("adb: device 'emulator-5600' not found");
+      return '';
+    },
+  });
+  let clock = 0;
+  f.deps.now = () => new Date((clock += 60_000));
+  const killed = [];
+  f.deps.kill = (pid) => killed.push(pid);
+  const code = await main(['android', 'start'], f.deps);
+  assert.notEqual(code, 0);
+  assert.match(f.calls.err, /drive-phone did not boot in 5 minutes \(adb never saw it\), so it was stopped: read \/state\/android-emulator.log/);
+  assert.deepEqual(killed, [4242]);
+  assert.ok(!f.calls.sh.some((c) => c.includes('wait-for-device')), 'no adb wait-for-device, which never gives up');
+});
+
+test('an emulator that exits while booting fails the start at once', async () => {
+  const f = fakeDeps({ sh: (cmd, args) => (args.includes('-list-avds') ? 'drive-phone\n' : '') });
+  f.deps.alive = () => false;
+  const code = await main(['android', 'start'], f.deps);
+  assert.notEqual(code, 0);
+  assert.match(f.calls.err, /the emulator of drive-phone exited while booting: read \/state\/android-emulator.log/);
+});
