@@ -2,36 +2,47 @@ package dev.mycroblog.app.navigation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailDefaults
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
@@ -82,52 +93,85 @@ fun MycroblogRoot() {
     }
 
     val shownEntries = state.shownStacks.flatMap { entries.getValue(it) }
-    val navigationInsets = if (state.barLayout) {
-        NavigationBarDefaults.windowInsets.only(WindowInsetsSides.Bottom)
+    // The same NavDisplay moves between the two layouts, keeping its state when the window changes size.
+    val display = remember {
+        movableContentOf { shown: List<NavEntry<NavKey>> -> NavDisplay(shown, onBack = state::back) }
+    }
+    if (state.barLayout) {
+        val barInsets = NavigationBarDefaults.windowInsets.only(WindowInsetsSides.Bottom)
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).consumeWindowInsets(barInsets)) {
+                display(shownEntries)
+            }
+            RootNavigationBar(state)
+        }
     } else {
-        NavigationRailDefaults.windowInsets.only(WindowInsetsSides.Start)
-    }
-    NavigationSuiteScaffoldLayout(
-        navigationSuite = { if (state.barLayout) RootNavigationBar(state) else RootNavigationRail(state) },
-        layoutType = if (state.barLayout) NavigationSuiteType.NavigationBar else NavigationSuiteType.NavigationRail,
-    ) {
-        Box(Modifier.consumeWindowInsets(navigationInsets)) {
-            NavDisplay(entries = shownEntries, onBack = state::back)
+        val railInsets = NavigationRailDefaults.windowInsets.only(WindowInsetsSides.Start)
+        Row(Modifier.fillMaxSize()) {
+            RootNavigationRail(state)
+            Box(Modifier.weight(1f).consumeWindowInsets(railInsets)) {
+                display(shownEntries)
+            }
         }
-    }
-}
-
-/** The navigation bar: the destinations that fit and "More", each label on one line at every font scale. */
-@Composable
-private fun RootNavigationBar(state: RootNavigationState) {
-    NavigationBar {
-        state.items.forEach { destination ->
-            val selected = !state.moreSelected && state.selected == destination
-            NavigationBarItem(
-                selected = selected,
-                onClick = { state.select(destination) },
-                icon = { DestinationIcon(destination, selected) },
-                label = { SingleLineLabel(stringResource(destination.label)) },
-            )
-        }
-        NavigationBarItem(
-            selected = state.moreSelected,
-            onClick = state::openMore,
-            icon = { Icon(Icons.Filled.MoreHoriz, contentDescription = null) },
-            label = { SingleLineLabel(stringResource(R.string.destination_more)) },
-        )
     }
 }
 
 /**
- * The navigation rail: every destination in order (ADR-0010 §4). Its items scroll when the window is too short for
- * them all, as on a phone in landscape, and the selected one is scrolled into view.
+ * The navigation bar: the destinations that fit and "More", every one labeled. The labels grow with the font scale
+ * only as far as every label still fits its item on one line, so that no label is broken or cut and the icons stay
+ * level.
+ */
+@Composable
+private fun RootNavigationBar(state: RootNavigationState) {
+    val labels = state.items.map { stringResource(it.label) } + stringResource(R.string.destination_more)
+    val style = MaterialTheme.typography.labelMedium
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints {
+        // The bar pads its row and spaces its items by BarItemSpacing; a label may take its item's whole width.
+        val itemWidth = (maxWidth - BarItemSpacing * 2 - BarItemSpacing * (labels.size - 1)) / labels.size
+        val widest = labels.maxOf { measurer.measure(it, style, maxLines = 1, softWrap = false).size.width }
+        val labelStyle = with(density) {
+            val fits = itemWidth.toPx() / widest
+            if (fits >= 1f) style else style.copy(fontSize = (style.fontSize.toPx() * fits * 0.98f).toSp())
+        }
+        NavigationBar {
+            state.items.forEachIndexed { index, destination ->
+                val selected = !state.moreSelected && state.selected == destination
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { state.select(destination) },
+                    icon = { DestinationIcon(destination, selected) },
+                    label = { Text(labels[index], style = labelStyle, maxLines = 1, softWrap = false) },
+                )
+            }
+            NavigationBarItem(
+                selected = state.moreSelected,
+                onClick = state::openMore,
+                icon = { Icon(Icons.Filled.MoreHoriz, contentDescription = null) },
+                label = { Text(labels.last(), style = labelStyle, maxLines = 1, softWrap = false) },
+            )
+        }
+    }
+}
+
+private val BarItemSpacing = 8.dp
+
+/**
+ * The navigation rail: every destination in order (ADR-0010 §4), within the window's insets. Its items scroll when the
+ * window is too short for them all, as on a phone in landscape, and the selected one is scrolled into view.
  */
 @Composable
 private fun RootNavigationRail(state: RootNavigationState) {
-    NavigationRail {
+    Surface(color = NavigationRailDefaults.ContainerColor, modifier = Modifier.fillMaxHeight()) {
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxHeight()
+                .windowInsetsPadding(NavigationRailDefaults.windowInsets)
+                .widthIn(min = RailWidth)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 4.dp)
+                .selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -139,7 +183,7 @@ private fun RootNavigationRail(state: RootNavigationState) {
                     selected = selected,
                     onClick = { state.select(destination) },
                     icon = { DestinationIcon(destination, selected) },
-                    label = { SingleLineLabel(stringResource(destination.label)) },
+                    label = { Text(stringResource(destination.label), textAlign = TextAlign.Center) },
                     modifier = Modifier.bringIntoViewRequester(requester),
                 )
             }
@@ -147,12 +191,9 @@ private fun RootNavigationRail(state: RootNavigationState) {
     }
 }
 
+private val RailWidth = 80.dp
+
 @Composable
 private fun DestinationIcon(destination: TopLevelDestination, selected: Boolean) {
     Icon(if (selected) destination.selectedIcon else destination.icon, contentDescription = null)
-}
-
-@Composable
-private fun SingleLineLabel(text: String) {
-    Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }

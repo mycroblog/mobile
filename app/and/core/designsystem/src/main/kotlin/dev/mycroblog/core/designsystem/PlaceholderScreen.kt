@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /**
  * A destination that has no content yet: its title, and a line that says so. With [onUp], its top app bar has an Up
@@ -31,8 +33,10 @@ fun PlaceholderScreen(title: String, modifier: Modifier = Modifier, onUp: (() ->
                 title = { Text(title) },
                 navigationIcon = {
                     if (onUp != null) {
-                        IconButton(onClick = onUp) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_up))
+                        // The button, not its icon, carries the name, so that its node is the 48dp touch target.
+                        val label = stringResource(R.string.navigate_up)
+                        IconButton(onClick = onUp, modifier = Modifier.semantics { contentDescription = label }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         }
                     }
                 },
