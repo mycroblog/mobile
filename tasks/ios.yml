@@ -40,6 +40,20 @@ tasks:
     cmds:
       - scripts/check/run.sh ios-build
 
+  api-generate:
+    desc: Generate the Swift client from shared/api/openapi.yaml into app/ios/Packages/API/Sources/GeneratedAPI, or into the directory OUT
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-api-generate {{if .OUT}}"{{.OUT}}"{{end}}
+
+  api-check:
+    desc: Fail when the committed Swift client differs from what shared/api/openapi.yaml generates, naming task api:generate
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-api-check
+
   launch:
     desc: Launch the app on an iPhone and then an iPad simulator, confirm it runs, and shut each down (one device at a time on this Mac)
     platforms: [darwin]
