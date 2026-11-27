@@ -1,3 +1,4 @@
+import AppData
 import SwiftUI
 
 /// The root of a scene: the top-level destinations in the OS tab container, which shows a tab bar in compact width
@@ -10,7 +11,12 @@ public struct RootView: View {
     @SceneStorage("RootView.selection") private var selection: RootSelection = .destination(.home)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    public init() {}
+    private let instanceLookup: any InstanceLookup
+
+    /// The root of a scene, whose screens look up servers with `instanceLookup`.
+    public init(instanceLookup: any InstanceLookup) {
+        self.instanceLookup = instanceLookup
+    }
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
 
@@ -23,7 +29,7 @@ public struct RootView: View {
             ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
-                        DestinationPlaceholder(destination: destination)
+                        DestinationScreen(destination: destination, instanceLookup: instanceLookup)
                     }
                 } label: {
                     TabLabel(title: destination.title, systemImage: destination.systemImage)
@@ -34,7 +40,7 @@ public struct RootView: View {
                     NavigationStack(path: overflowPath) {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
-                                DestinationPlaceholder(destination: destination)
+                                DestinationScreen(destination: destination, instanceLookup: instanceLookup)
                             }
                     }
                 } label: {
@@ -96,6 +102,19 @@ private struct OverflowList: View {
             }
         }
         .navigationTitle("More")
+    }
+}
+
+/// The screen of a top-level destination: its feature, or its placeholder until the feature lands.
+private struct DestinationScreen: View {
+    let destination: TopLevelDestination
+    let instanceLookup: any InstanceLookup
+
+    var body: some View {
+        switch destination {
+        case .settings: SettingsScreen(instanceLookup: instanceLookup)
+        default: DestinationPlaceholder(destination: destination)
+        }
     }
 }
 

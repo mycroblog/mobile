@@ -15,6 +15,7 @@ How iOS, iPadOS and the iPhone Duo behave for this app. Read this file, then the
 | `swift-openapi-generator.md` | swift-openapi-generator, runtime, urlsession: versions, CLI, config, 3.1 limits |
 | `layout-check-apis.md` | APIs revealing idiom, orientation, screen size; allowed alternatives; swift-format |
 | `testing-and-tooling.md` | swift-snapshot-testing, xcresulttool attachments, xcodebuild test flags and TEST_RUNNER_, ATS and localhost |
+| `hig-sheets-forms.md` | HIG for sheets, text fields, data entry; SubmitLabel, accessibility announcements |
 
 ## Rules for a line
 
