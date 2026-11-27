@@ -4,6 +4,7 @@
 set -euo pipefail
 
 REPO="mycroblog/mobile"
+SERVER_REPO="mycroblog/my"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MARKDOWNLINT="markdownlint-cli2@0.23.2"
 KNOWLEDGE_LIMIT=4096 # bytes per file of .claude/knowledge, .claude/agents and .claude/skills (ADR-0011 §5)
@@ -16,9 +17,10 @@ Usage: scripts/kit <command> [arguments]
 
   issue claim <n> --plan "<one line>"
                       Take an issue: refuses one that is closed, assigned to someone else, or that names an open
-                      issue it depends on ("Depends on #n"). Assigns it to you and comments the plan.
-  ctx <n>             Print the context of an issue: its body, its milestone, the issues it depends on and their
-                      state, and the ADRs of this repository it cites, as local paths.
+                      issue of mobile or my it depends on ("Depends on #n" or "mycroblog/my#n"). Assigns it to you
+                      and comments the plan.
+  ctx <n>             Print the context of an issue: its body, its milestone, the issues of mobile and my and the my
+                      commits it depends on and their state, and the ADRs of this repository it cites, as local paths.
   check               Run every check that exists: the Markdown lint, no full-width parentheses in Markdown, the
                       size limit of the agents' knowledge, skills and definitions, and the shell lint of scripts/.
   pr open [--refs]    Run `check`, push the branch and open its pull request. The branch is <type>/<issue>-<slug>;
@@ -26,7 +28,7 @@ Usage: scripts/kit <command> [arguments]
                       complete the issue. Running it again on a branch that has a pull request pushes and stops.
   pr land <pr>        Queue the pull request to merge once its checks pass, follow it to the merge, then delete the
                       local branch and report what closed.
-  help                Show this help.
+  help                Show this help; -h or --help after any command shows it too.
 EOF
 }
 
@@ -34,14 +36,26 @@ need() { command -v "$1" >/dev/null 2>&1 || die "$1 is not installed: $2"; }
 
 # --- issue claim --------------------------------------------------------------------------------------------------
 
+dependency_refs() {
+  # The references an issue body names on its "Depends on" lines, one per line: `mobile <n>`, `my <n>` for
+  # mycroblog/my#n, and `my@ <sha>` for a commit mycroblog/my@<sha>.
+  local lines
+  lines="$(printf '%s\n' "$1" | grep -i 'depends on' || true)"
+  printf '%s\n' "$lines" | grep -o 'mycroblog/my@[0-9a-f]\{7,40\}' | sed 's|.*@|my@ |' || true
+  printf '%s\n' "$lines" | grep -o '\(mycroblog/[a-z]*\)\?#[0-9]\+' | sed -e 's|^mycroblog/my#|my |' \
+    -e 's|^mycroblog/mobile#|mobile |' -e 's|^#|mobile |' | grep -v '^mycroblog/' || true
+}
+
 open_dependencies() {
-  # The issues an issue body names with "Depends on #n" (and "#n, #m and #k" after it) that are still open.
-  local body="$1" n
-  for n in $(printf '%s\n' "$body" | grep -i 'depends on' | grep -o '#[0-9]\+' | tr -d '#' | sort -u); do
-    if [[ "$(gh issue view "$n" --repo "$REPO" --json state -q .state)" == "OPEN" ]]; then
-      printf '%s\n' "$n"
-    fi
-  done
+  # The issues of mobile and my that an issue body depends on and that are still open, as `#n` or `mycroblog/my#n`.
+  local repo n
+  while read -r repo n; do
+    case "$repo" in
+      mobile) [[ "$(gh issue view "$n" --repo "$REPO" --json state -q .state)" == "OPEN" ]] && printf '#%s\n' "$n" ;;
+      my) [[ "$(gh issue view "$n" --repo "$SERVER_REPO" --json state -q .state)" == "OPEN" ]] && printf '%s#%s\n' "$SERVER_REPO" "$n" ;;
+    esac
+  done < <(dependency_refs "$1" | sort -u)
+  return 0
 }
 
 cmd_issue_claim() {
@@ -67,8 +81,7 @@ cmd_issue_claim() {
   body="$(jq -r .body <<<"$json")"
   blockers="$(open_dependencies "$body")"
   if [[ -n "$blockers" ]]; then
-    local list="#${blockers//$'\n'/ #}"
-    die "#$n depends on open issues: $list - finish those first."
+    die "#$n depends on open issues: ${blockers//$'\n'/ } - finish those first."
   fi
   gh issue edit "$n" --repo "$REPO" --add-assignee "@me" >/dev/null
   gh issue comment "$n" --repo "$REPO" --body "Taking this: $plan" >/dev/null
@@ -80,7 +93,7 @@ cmd_issue_claim() {
 cmd_ctx() {
   local n="${1:-}"
   [[ -n "$n" ]] || die "ctx needs an issue number: scripts/kit ctx <n>"
-  local json body adr f dep
+  local json body adr f
   json="$(gh issue view "$n" --repo "$REPO" --json number,title,state,milestone,body,assignees)"
   body="$(jq -r .body <<<"$json")"
   printf '# #%s %s (%s, milestone: %s, assigned: %s)\n\n' \
@@ -88,9 +101,17 @@ cmd_ctx() {
     "$(jq -r '.milestone.title // "none"' <<<"$json")" "$(jq -r '[.assignees[].login] | join(",") | if . == "" then "nobody" else . end' <<<"$json")"
   printf '%s\n\n' "$body"
   printf '## Depends on\n\n'
-  for dep in $(printf '%s\n' "$body" | grep -i 'depends on' | grep -o '#[0-9]\+' | tr -d '#' | sort -u); do
-    gh issue view "$dep" --repo "$REPO" --json number,title,state -q '"- #\(.number) \(.state) \(.title)"'
-  done
+  local repo ref
+  while read -r repo ref; do
+    case "$repo" in
+      mobile) gh issue view "$ref" --repo "$REPO" --json number,title,state -q '"- #\(.number) \(.state) \(.title)"' ;;
+      my) gh issue view "$ref" --repo "$SERVER_REPO" --json number,title,state \
+            -q '"- '"$SERVER_REPO"'#\(.number) \(.state) \(.title)"' ;;
+      my@) printf -- '- %s@%s %s (in ../my: %s)\n' "$SERVER_REPO" "$ref" \
+             "$(gh api "repos/$SERVER_REPO/commits/$ref" -q '.commit.message | split("\n")[0]' 2>/dev/null || echo 'not found on GitHub')" \
+             "$(git -C "$ROOT/../my" cat-file -e "$ref^{commit}" 2>/dev/null && echo yes || echo 'no: git -C ../my fetch')" ;;
+    esac
+  done < <(dependency_refs "$body" | sort -u)
   printf '\n## ADRs of this repository it cites\n\n'
   for adr in $(printf '%s\n' "$body" | grep -o '\(mobile \)\?ADR-[0-9]\{4\}' | grep -v '^my' | grep -o '[0-9]\{4\}' | sort -u); do
     for f in "$ROOT"/docs/adr/"$adr"-*.md; do
@@ -106,6 +127,7 @@ check_markdown() {
   need npx "install Node.js (the version in .tool-versions)"
   (cd "$ROOT" && npx -y "$MARKDOWNLINT" "**/*.md" >/dev/null 2>"$TMPDIR_KIT/mdlint") || {
     cat "$TMPDIR_KIT/mdlint" >&2
+    printf 'kit: fix each line above as its rule says (npx %s --fix "**/*.md" fixes most), then check again.\n' "$MARKDOWNLINT" >&2
     return 1
   }
 }
@@ -221,6 +243,10 @@ cmd_pr_land() {
 }
 
 # --- main ---------------------------------------------------------------------------------------------------------
+
+for arg in "$@"; do
+  case "$arg" in -h|--help) usage; exit 0 ;; esac
+done
 
 need gh "install the GitHub CLI and run gh auth login"
 need jq "install jq"
