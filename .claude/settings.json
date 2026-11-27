@@ -9,6 +9,8 @@
       "Bash(scripts/kit pr open --refs)",
       "Bash(scripts/kit pr land *)",
       "Bash(scripts/kit help)",
+      "Bash(scripts/drive)",
+      "Bash(scripts/drive *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
