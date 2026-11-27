@@ -31,6 +31,8 @@ dependencies {
     implementation(project(":core:data"))
     // The server screen asks for a permission at run time (LocalNetworkPermission.kt).
     implementation(libs.androidx.activity.compose)
+    // The server screen lays out its form by the window's height class (ADR-0010 §4).
+    implementation(libs.androidx.compose.material3.adaptive)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

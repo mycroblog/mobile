@@ -19,6 +19,7 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `network-and-text-input.md` | Ktor engines and timeout exceptions, network security config and cleartext, INTERNET, state-based TextField, UI state saving |
 | `local-network.md` | Android 17 ACCESS_LOCAL_NETWORK: scope, addresses, failure mode |
 | `ui-automation.md` | UiAutomation windows, Compose accessibility node info, shell commands from an instrumented runner |
+| `ime-and-focus.md` | windowSoftInputMode and IME insets, extract UI, hiding the keyboard |
 
 ## Rules for a line
 

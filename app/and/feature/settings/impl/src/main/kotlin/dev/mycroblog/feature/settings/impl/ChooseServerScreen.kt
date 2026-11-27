@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -27,6 +28,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -55,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.mycroblog.core.designsystem.NavigateUpButton
 import dev.mycroblog.core.model.InstanceLookupFailure
 
@@ -97,7 +102,6 @@ internal fun ChooseServerRoute(onUp: (() -> Unit)?, viewModel: ChooseServerViewM
  * The server screen: a field for the address of a server, "Look up", and the instance it found or why it found none.
  * It holds no state: [address] is the field's text and [uiState] the rest.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChooseServerScreen(
     address: TextFieldState,
@@ -107,37 +111,47 @@ fun ChooseServerScreen(
     modifier: Modifier = Modifier,
     onUp: (() -> Unit)? = null,
 ) {
+    // A lookup that starts, or an address found invalid, ends the field's focus, which hides the keyboard, so that the
+    // result or the error shows.
+    val focusManager = LocalFocusManager.current
+    val answered = uiState.lookup is ServerLookupState.Loading || uiState.lookup == ServerLookupState.InvalidAddress
+    LaunchedEffect(answered) {
+        if (answered) focusManager.clearFocus()
+    }
+    // On a short window, such as a phone in landscape with the keyboard open, the top app bar scrolls with the form and
+    // "Look up" sits beside the field, so that the field and the action fit above the keyboard.
+    val compactHeight = !currentWindowAdaptiveInfoV2().windowSizeClass
+        .isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.choose_server_title)) },
-                navigationIcon = { if (onUp != null) NavigateUpButton(onClick = onUp) },
-            )
-        },
+        topBar = { if (!compactHeight) ChooseServerTopBar(onUp) },
     ) { padding ->
         // The form scrolls above the keyboard, so that "Look up" and the result stay reachable while typing.
-        Box(
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .fillMaxWidth(),
-            contentAlignment = Alignment.TopCenter,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (compactHeight) ChooseServerTopBar(onUp, windowInsets = WindowInsets(0))
             Column(
                 modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                AddressField(address, uiState, onLookUp)
-                val lookUp = stringResource(R.string.choose_server_look_up)
-                Button(
-                    onClick = onLookUp,
-                    enabled = uiState.canLookUp,
-                    modifier = Modifier.align(Alignment.End).buttonSemantics(lookUp, uiState.canLookUp, onLookUp),
-                ) {
-                    Text(lookUp)
+                if (compactHeight) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AddressField(address, uiState, onLookUp, Modifier.weight(1f))
+                        LookUpButton(uiState, onLookUp)
+                    }
+                } else {
+                    AddressField(address, uiState, onLookUp, Modifier.fillMaxWidth())
+                    LookUpButton(uiState, onLookUp, Modifier.align(Alignment.End))
                 }
                 Box(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
                     LookupResult(uiState.lookup, onRetry)
@@ -147,12 +161,39 @@ fun ChooseServerScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddressField(address: TextFieldState, uiState: ChooseServerUiState, onLookUp: () -> Unit) {
+private fun ChooseServerTopBar(onUp: (() -> Unit)?, windowInsets: WindowInsets = TopAppBarDefaults.windowInsets) {
+    TopAppBar(
+        title = { Text(stringResource(R.string.choose_server_title)) },
+        navigationIcon = { if (onUp != null) NavigateUpButton(onClick = onUp) },
+        windowInsets = windowInsets,
+    )
+}
+
+@Composable
+private fun LookUpButton(uiState: ChooseServerUiState, onLookUp: () -> Unit, modifier: Modifier = Modifier) {
+    val lookUp = stringResource(R.string.choose_server_look_up)
+    Button(
+        onClick = onLookUp,
+        enabled = uiState.canLookUp,
+        modifier = modifier.buttonSemantics(lookUp, uiState.canLookUp, onLookUp),
+    ) {
+        Text(lookUp)
+    }
+}
+
+@Composable
+private fun AddressField(
+    address: TextFieldState,
+    uiState: ChooseServerUiState,
+    onLookUp: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val invalid = uiState.lookup == ServerLookupState.InvalidAddress
     OutlinedTextField(
         state = address,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         label = { Text(stringResource(R.string.choose_server_address_label)) },
         placeholder = { Text(stringResource(R.string.choose_server_address_hint)) },
         supportingText = if (invalid) {
