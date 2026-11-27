@@ -3,6 +3,7 @@
 // or `-variant split3` (three-column NavigationSplitView in regular width, tab bar in compact).
 import SwiftUI
 import Observation
+import UserNotifications
 
 enum Destination: String, CaseIterable, Hashable, Identifiable {
     case home, local, federated, notifications, search, dms, profile, bookmarks, settings
@@ -36,7 +37,35 @@ struct PostID: Hashable, Codable { var dest: String; var n: Int }
     var draft = ""
 }
 
+/// Last external input, shown in the debug overlay so a driver can see it in the tree (#15).
+@Observable final class Inbox {
+    static let shared = Inbox()
+    var last = "-"
+    var openPost: Int?
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
+        application.registerForRemoteNotifications()
+        return true
+    }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .list]
+    }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let info = response.notification.request.content.userInfo
+        let post = info["post"] as? Int
+        await MainActor.run {
+            Inbox.shared.last = "push:\(post.map(String.init) ?? "-")"
+            Inbox.shared.openPost = post
+        }
+    }
+}
+
 @main struct Spike3App: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     var body: some Scene {
         WindowGroup { SceneRoot() }
     }
@@ -48,6 +77,7 @@ struct SceneRoot: View {
     @Environment(\.horizontalSizeClass) private var h
     @Environment(\.verticalSizeClass) private var v
     private let variant = UserDefaults.standard.string(forKey: "variant") ?? "tabs"
+    @State private var inbox = Inbox.shared
 
     var body: some View {
         Group {
@@ -55,9 +85,21 @@ struct SceneRoot: View {
         }
         .environment(nav)
         .sheet(isPresented: $nav.composerPresented) { Composer().environment(nav) }
+        // spike3://post/<n> opens post n in Home; spike3://compose?text=... opens the composer.
+        .onOpenURL { url in
+            inbox.last = "url:\(url.absoluteString)"
+            if url.host == "post", let n = Int(url.lastPathComponent) { open(post: n) }
+            if url.host == "compose" {
+                let text = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "text" }?.value
+                nav.draft = text ?? ""
+                nav.composerPresented = true
+            }
+        }
+        .onChange(of: inbox.openPost) { _, n in if let n { open(post: n); inbox.openPost = nil } }
         .overlay(alignment: .bottom) {
             GeometryReader { g in
-                Text("\(variant) h:\(h == .regular ? "R" : "C") v:\(v == .regular ? "R" : "C") \(Int(g.size.width))x\(Int(g.size.height)) scene:\(sceneID) tab:\(nav.tab.rawValue) sel:\(nav.selection[nav.tab].map { String($0.n) } ?? "-")")
+                Text("\(variant) h:\(h == .regular ? "R" : "C") v:\(v == .regular ? "R" : "C") \(Int(g.size.width))x\(Int(g.size.height)) scene:\(sceneID) tab:\(nav.tab.rawValue) sel:\(nav.selection[nav.tab].map { String($0.n) } ?? "-") in:\(inbox.last)")
+                    .accessibilityIdentifier("debugOverlay")
                     .font(.caption2.monospaced()).padding(4)
                     .background(.yellow.opacity(0.85))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -65,6 +107,12 @@ struct SceneRoot: View {
             }
             .allowsHitTesting(false)
         }
+    }
+
+    private func open(post n: Int) {
+        nav.composerPresented = false
+        nav.tab = .home
+        nav.selection[.home] = PostID(dest: Destination.home.rawValue, n: n)
     }
 }
 
@@ -84,7 +132,16 @@ struct TabsRoot: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         // `-sidebar 1`: ask for the sidebar where the system allows it (Duo inner display is opt-in).
-        .defaultTabBarPlacement(UserDefaults.standard.bool(forKey: "sidebar") ? .sidebar : .automatic)
+        .modifier(SidebarPlacement())
+    }
+}
+
+/// `defaultTabBarPlacement` exists from iOS 27; the iPad simulator here runs iOS 26.5.
+struct SidebarPlacement: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27.0, *) {
+            content.defaultTabBarPlacement(UserDefaults.standard.bool(forKey: "sidebar") ? .sidebar : .automatic)
+        } else { content }
     }
 }
 
