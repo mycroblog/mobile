@@ -6,11 +6,11 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.mycroblog.core.designsystem.R as DesignSystemR
+import dev.mycroblog.feature.settings.impl.R as SettingsR
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import dev.mycroblog.core.designsystem.R as DesignSystemR
-import dev.mycroblog.feature.settings.impl.R as SettingsR
 
 /** On a phone, a destination that the navigation bar has no room for opens from "More". */
 @RunWith(AndroidJUnit4::class)
