@@ -746,8 +746,11 @@ boot_android() {
   local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb deadline log
   adb="$ANDROID_SDK/platform-tools/adb"
   if ! "$ANDROID_SDK/emulator/emulator" -list-avds | grep -qx "$avd"; then
-    echo no | "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" >/dev/null ||
-      fail "could not create the AVD $avd from $ANDROID_IMAGE: create it in Android Studio's Device Manager as a $profile, then check again."
+    local out
+    out="$(echo no | "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" 2>&1)" || {
+      printf '%s\n' "$out" >&2
+      fail "could not create the AVD $avd from $ANDROID_IMAGE (avdmanager says why above): install the image with sdkmanager, or create it in Android Studio's Device Manager as a $profile, then check again."
+    }
   fi
   log="$(mktemp)"
   "$ANDROID_SDK/emulator/emulator" -avd "$avd" -port "$ANDROID_CONSOLE_PORT" -no-window -no-snapshot-save -no-boot-anim \

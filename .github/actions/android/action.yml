@@ -18,5 +18,6 @@ runs:
         # sdkmanager closes its input once every license is accepted, which ends yes with SIGPIPE: that is not a failure.
         # A license left unaccepted fails the install below.
         yes 2>/dev/null | "$sdkmanager" --licenses >/dev/null || true
-        "$sdkmanager" "platforms;android-37.2" "build-tools;37.0.0" platform-tools emulator \
-          "system-images;android-37.0;google_apis_playstore;x86_64" >/dev/null
+        "$sdkmanager" "cmdline-tools;latest" "platforms;android-37.2" "build-tools;37.0.0" platform-tools emulator \
+          "system-images;android-37.0;google_apis_playstore;x86_64" | grep -v '^\[' || true
+        ls "$ANDROID_HOME/system-images/android-37.0/google_apis_playstore/x86_64" >/dev/null
