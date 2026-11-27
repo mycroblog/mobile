@@ -7,6 +7,7 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `architecture-and-navigation.md` | Google's architecture recommendations, Navigation 3, adaptive layouts, predictive back, state saving |
 | `entry-points.md` | Shares, Direct Share, App Links, notifications and their actions |
 | `background-and-push.md` | WorkManager, foreground services, user-initiated transfers, FCM |
+| `auth-app-links.md` | assetlinks.json, App Links verification and testing, Auth Tab and Custom Tabs for OAuth sign-in |
 | `data-and-di.md` | Room, Paging, Hilt and other DI |
 
 ## Rules for a line
