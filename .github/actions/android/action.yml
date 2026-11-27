@@ -20,4 +20,11 @@ runs:
         yes 2>/dev/null | "$sdkmanager" --licenses >/dev/null || true
         "$sdkmanager" "cmdline-tools;latest" "platforms;android-37.2" "build-tools;37.0.0" platform-tools emulator \
           "system-images;android-37.0;google_apis_playstore;x86_64" | grep -v '^\[' || true
+        # The runner's own cmdline-tools sit in latest/, so sdkmanager puts the newer ones in latest-2/: swap them, so that
+        # avdmanager knows the current device profiles (pixel_9).
+        if [[ -d "$ANDROID_HOME/cmdline-tools/latest-2" ]]; then
+          rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+          mv "$ANDROID_HOME/cmdline-tools/latest-2" "$ANDROID_HOME/cmdline-tools/latest"
+        fi
+        "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" list device -c | grep -qx pixel_9
         ls "$ANDROID_HOME/system-images/android-37.0/google_apis_playstore/x86_64" >/dev/null
