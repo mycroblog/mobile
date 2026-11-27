@@ -170,7 +170,9 @@ cmd_pr_open() {
   n="$(branch_issue "$branch")"
   [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || die "the working tree has uncommitted changes: commit them first."
   cmd_check
-  git -C "$ROOT" push -q -u origin "$branch"
+  # An explicit refspec: with push.default=tracking or upstream, a bare branch name pushes to the branch's upstream,
+  # which is origin/main when the branch was cut from it.
+  git -C "$ROOT" push -q -u origin "refs/heads/$branch:refs/heads/$branch"
   existing="$(gh pr list --repo "$REPO" --head "$branch" --json number -q '.[0].number // empty')"
   if [[ -n "$existing" ]]; then
     printf 'pushed to #%s\n' "$existing"
