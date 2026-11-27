@@ -38,6 +38,8 @@ export function decide(role, call, { root = ROOT, env = process.env } = {}) {
       ? `One scripts/drive step per call, with no ; & | > < \` or $( in it. ${instead}`
       : `${role} judges the running app and runs only scripts/drive, not "${command.split(/\s/)[0]}". ${instead}`;
   }
+  // The tool that hands the role's report back to the one that started it reads nothing.
+  if (tool === 'SubagentHandback') return null;
   if (tool === 'Read') {
     const file = path.resolve(root, String(input.file_path ?? ''));
     if (inside(file, stateDir(env)) || inside(file, path.join(root, '.claude/knowledge', role))) return null;

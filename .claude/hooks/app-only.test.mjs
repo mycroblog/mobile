@@ -15,6 +15,7 @@ test('the app-driving tool, its screenshots and the role knowledge pass', () => 
   assert.equal(ask('Bash', { command: '/repo/scripts/drive android look' }), null);
   assert.equal(ask('Read', { file_path: '/state/shots/2026-ios-tap.png' }), null);
   assert.equal(ask('Read', { file_path: '/repo/.claude/knowledge/ios-evaluator/index.md' }), null);
+  assert.equal(ask('SubagentHandback', { report: 'Verdict: pass.' }), null);
 });
 
 test('the source and everything else are refused with what to use instead', () => {
