@@ -9,56 +9,44 @@
 - a runner per OS, a UI test that never ends and answers the protocol below: [`ios/`](ios/) (XCUITest) and
   [`android/`](android/) (UI Automator).
 
-A session's state, logs and screenshots are under `$DRIVE_STATE_DIR`, by default `$TMPDIR/mycroblog-drive/`. The
+The iPhone Duo hinge needs idb (MIT), which no public Apple tool replaces: `brew install facebook/fb/idb-companion`,
+then `pipx install fb-idb`. A session's state, logs and screenshots are under `$DRIVE_STATE_DIR`, by default `$TMPDIR/mycroblog-drive/`. The
 tool creates its own devices (`drive-<kind>`) and never drives one it did not create.
 
 ## Runner protocol
 
 The client talks to the runner over TCP on 127.0.0.1, one JSON object per line in each direction, one reply per
-request.
-
-## Request
-
-`{"op": "<op>", "app": "<bundle id or package of the app under test>", ...arguments}`
+request. A request is `{"op": "<op>", "app": "<bundle id or package of the app under test>", ...arguments}`.
 
 | op | arguments | what |
 | --- | --- | --- |
-| `ping` | | reply `{"ok": true}` only, no tree, no screenshot |
-| `look` | | nothing; the tree and screenshot after settling |
-| `tap` | one of `label`, `id`, or `x` + `y` (points / pixels of the screenshot) | tap the element, searched in the app first, then in system UI (iOS springboard and other apps on screen; Android: any window) |
-| `type` | `text`; optional `label` or `id` of a field to focus first | type into the focused or the named field; spaces must be kept |
-| `scroll` | `direction`: `up` `down` `left` `right` (the direction the *content* moves into view: `down` shows what is below); optional `label`/`id` of the scroll container | |
-| `back` | | Android: pressBack. iOS: the navigation bar's back button, else a left-edge swipe |
+| `ping`, `quit` | | reply `{"ok": true}` only; `quit` then ends the runner |
+| `look` | | nothing; the screen |
+| `tap` | `label`, `id`, or `x` + `y` | tap the element (searched in the app, then in the system UI over it) or the point |
+| `type` | `text`; optional `label` or `id` of a field | type into the named or the focused field, spaces kept |
+| `scroll` | `direction`: `up` `down` `left` `right`; optional `label` or `id` of a container | bring the content in that direction into view |
+| `back` | | Android: the system back. iOS: the navigation bar's back button, else a swipe from the left edge |
 | `home` | | press home |
-| iOS only `launch` | `args`: list of launch arguments | (re)launch `app` with these arguments (RTL uses this) |
-| iOS only `activate` | | bring `app` to the foreground |
-| iOS only `orientation` | `value`: `portrait` `landscape-left` `landscape-right` `upside-down` | |
-| iOS only `open` | `url` | `XCUIDevice.shared.system.open` (no confirmation alert) |
-| iOS only `share` | `url`, `target`: the name of the app in the share sheet | open the URL in Safari, open its share sheet, pick `target` |
-| iOS only `resize` | `width`, `height` (points) | iPadOS windowed apps: drag the window's resize grabber until the app's window has this size, as near as it goes |
+| `launch` (iOS) | `args`: launch arguments | (re)launch the app |
+| `activate` (iOS) | | bring the app to the foreground |
+| `orientation` (iOS) | `value`: `portrait` `landscape-left` `landscape-right` `upside-down` | |
+| `open` (iOS) | `url` | open it as the system does, without a confirmation alert |
+| `share` (iOS) | `url` (or text), `target`: an app's name in the share sheet | the runner's host app opens the system share sheet for it; pick `target` |
+| `resize` (iOS) | `width`, `height` in points | drag an iPadOS window's resize grabber until the window is that size, as near as it goes |
 
-## Reply
+A reply is `{"ok": true|false, "error": "<one sentence>", "tree": <node>, "screenshot": "<base64 PNG>"}`.
 
-`{"ok": true|false, "error": "<what went wrong, in one sentence>", "tree": <Node>, "screenshot": "<base64 PNG>"}`
-
-- Every op except `ping` returns `tree` and `screenshot`, **also when it fails**, so the client can say what is on the
-  screen instead.
-- The tree and screenshot are taken only after the screen settles: wait for idle, then read the tree every 100 ms until
-  two reads in a row are equal (at most 3 s).
-- An op that acts on the app (`tap`, `type`, `scroll`, `back`) fails with `error: "<app> is not running"` when the
-  app's process is not running at all.
-- An element that is not there fails with `error: "no element with label \"X\""` (or id), after waiting up to 2 s.
-
-## Node
-
-`{"role": "Button", "label": "Compose", "id": "compose", "value": "...", "frame": [x, y, w, h], "states": ["selected", "disabled", "focused", "checked", "heading"], "children": [Node]}`
-
-- `role` is the platform's own element type name (iOS: the `XCUIElement.ElementType` name such as `Button`,
-  `StaticText`, `NavigationBar`, `Cell`; Android: the role description when set, else the simple class name such as
-  `Button`, `TextView`, `EditText`).
-- Leave out empty fields. Fold containers that have no label, no id and no state into their parent (their children
-  move up).
-- The root is `{"role": "Screen", "children": [...]}`: the app under test when it is in front, and the system UI that
-  is over it or in front instead (iOS: springboard alerts, banners, and the app in front; Android: all windows).
-- `frame` is in screen coordinates (iOS points, Android pixels), so a `tap` at a frame's centre lands on it. On iPadOS
-  windowed apps add the window origin.
+- Every op but `ping` and `quit` returns the tree and the screenshot, also when it fails, so the client can say what
+  is on the screen instead. An op that acts on the app fails with `<app> is not running` when its process is not
+  running, and an element that is not there with `no element with label "X"` (or id) after waiting 2 s.
+- The reply waits until the screen settles: two reads of the tree 100 ms apart are equal (for at most 3 s). After a
+  gesture on Android, they must also differ from the tree before it, or 1 s must have passed: idle came before a
+  new screen had drawn.
+- A node is `{"role", "label", "id", "value", "frame": [x, y, w, h], "states": [...], "children": [...]}`, empty fields
+  left out. `role` is the platform's type name (iOS: the `XCUIElement.ElementType` name; Android: the role
+  description, else the class name). `states` holds `selected`, `disabled`, `focused`, `checked` and, on Android,
+  `heading`: XCUITest has no public API for traits. A node with no label, id, value or state is folded into its parent.
+- The root is `Screen`. On iOS its children are the apps in front, with springboard when it shows an alert, a banner,
+  or the home screen. On Android they are the windows, each a `Window` node titled by its window, top-most first.
+- `frame` and `x`/`y` are screen coordinates: iOS points (the screenshot is scaled to points, so its pixels are the
+  same), Android pixels. Ids on Android are full resource names; an `id` argument may leave out the `<package>:id/`.
