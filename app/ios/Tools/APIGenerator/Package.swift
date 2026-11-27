@@ -7,6 +7,6 @@ let package = Package(
     name: "APIGenerator",
     platforms: [.macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.14.4"),
+        .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.14.4")
     ]
 )

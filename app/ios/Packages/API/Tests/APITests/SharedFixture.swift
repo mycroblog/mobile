@@ -5,13 +5,13 @@ import Foundation
 enum SharedFixture {
     /// The directory `shared/fixtures/` of the repository this file is in.
     static let directory = URL(filePath: #filePath)
-        .deletingLastPathComponent() // SharedFixture.swift
-        .deletingLastPathComponent() // APITests
-        .deletingLastPathComponent() // Tests
-        .deletingLastPathComponent() // API
-        .deletingLastPathComponent() // Packages
-        .deletingLastPathComponent() // ios
-        .deletingLastPathComponent() // app
+        .deletingLastPathComponent()  // SharedFixture.swift
+        .deletingLastPathComponent()  // APITests
+        .deletingLastPathComponent()  // Tests
+        .deletingLastPathComponent()  // API
+        .deletingLastPathComponent()  // Packages
+        .deletingLastPathComponent()  // ios
+        .deletingLastPathComponent()  // app
         .appending(path: "shared/fixtures")
 
     /// The bytes of the fixture at `path`, relative to `shared/fixtures/`, such as `instance/response.json`.

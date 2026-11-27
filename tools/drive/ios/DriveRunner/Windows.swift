@@ -8,8 +8,10 @@ struct Windows {
     /// The card of the app's window, when the app is in a window.
     private func card(of id: String) -> XCUIElement? {
         guard UIDevice.current.userInterfaceIdiom == .pad else { return nil }
-        let card = driver.springboard.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "card:\(id):"))
-            .firstMatch
+        let card = driver.springboard.otherElements.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "card:\(id):")
+        )
+        .firstMatch
         return card.exists ? card : nil
     }
 

@@ -9,7 +9,9 @@ struct Share {
     func pick(_ target: String) throws {
         let sheet = source.otherElements["ShareSheet.RemoteContainerView"]
         let cells = sheet.cells.matching(identifier: "shareCell")
-        guard cells.firstMatch.waitForExistence(timeout: 5) else { throw Driver.Failure("the share sheet did not open") }
+        guard cells.firstMatch.waitForExistence(timeout: 5) else {
+            throw Driver.Failure("the share sheet did not open")
+        }
         awaitStill(sheet)
         let app = cells.matching(NSPredicate(format: "label == %@", target)).firstMatch
         if app.exists {

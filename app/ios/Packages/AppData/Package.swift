@@ -20,6 +20,6 @@ let package = Package(
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
                 .enableUpcomingFeature("InferIsolatedConformances"),
             ]
-        ),
+        )
     ]
 )
