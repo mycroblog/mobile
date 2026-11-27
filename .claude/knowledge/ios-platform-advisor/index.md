@@ -10,6 +10,7 @@ How iOS, iPadOS and the iPhone Duo behave for this app. Read this file, then the
 | `cross-process-locks.md` | 0xDEAD10CC, file locks and NSFileCoordinator across app and extensions, Keychain atomicity and sharing |
 | `auth-and-links.md` | Associated domains, AASA, Universal Links, ASWebAuthenticationSession https callback |
 | `concurrency-and-build.md` | Swift concurrency defaults, SwiftUI isolation, SwiftPM and Xcode pitfalls |
+| `scene-restoration.md` | SceneStorage and scene session restoration, Tab accessibility |
 | `tabs-launch-plist.md` | TabView and sidebarAdaptable, simctl launch and bootstatus, Info.plist keys |
 
 ## Rules for a line

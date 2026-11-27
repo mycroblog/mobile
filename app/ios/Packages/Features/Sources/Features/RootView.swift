@@ -17,20 +17,24 @@ public struct RootView: View {
     public var body: some View {
         TabView(selection: tabSelection) {
             ForEach(isCompact ? RootSelection.compactTabBarDestinations : TopLevelDestination.allCases, id: \.self) { destination in
-                Tab(destination.title, systemImage: destination.systemImage, value: RootSelection.destination(destination)) {
+                Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
                         DestinationPlaceholder(destination: destination)
                     }
+                } label: {
+                    TabLabel(title: destination.title, systemImage: destination.systemImage)
                 }
             }
             if isCompact {
-                Tab("More", systemImage: "ellipsis", value: RootSelection.overflowList) {
+                Tab(value: RootSelection.overflowList) {
                     NavigationStack(path: overflowPath) {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
                                 DestinationPlaceholder(destination: destination)
                             }
                     }
+                } label: {
+                    TabLabel(title: "More", systemImage: "ellipsis")
                 }
             }
         }
@@ -60,6 +64,21 @@ public struct RootView: View {
             selection.overflowDestination.map { [$0] } ?? []
         } set: { path in
             selection = path.last.map(RootSelection.destination) ?? .overflowList
+        }
+    }
+}
+
+/// The label of a tab. Its symbol's accessible name is the tab's title, not the symbol's name.
+private struct TabLabel: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: systemImage)
+                .accessibilityLabel(Text(title))
         }
     }
 }
