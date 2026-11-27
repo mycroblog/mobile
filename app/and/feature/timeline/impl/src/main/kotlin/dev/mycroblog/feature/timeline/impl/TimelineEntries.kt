@@ -8,9 +8,18 @@ import dev.mycroblog.feature.timeline.api.FederatedTimelineKey
 import dev.mycroblog.feature.timeline.api.HomeTimelineKey
 import dev.mycroblog.feature.timeline.api.LocalTimelineKey
 
-/** The destinations of the timeline feature, for the app's NavDisplay. */
-fun EntryProviderScope<NavKey>.timelineEntries() {
-    entry<HomeTimelineKey> { PlaceholderScreen(stringResource(R.string.home_timeline_title)) }
-    entry<LocalTimelineKey> { PlaceholderScreen(stringResource(R.string.local_timeline_title)) }
-    entry<FederatedTimelineKey> { PlaceholderScreen(stringResource(R.string.federated_timeline_title)) }
+/**
+ * The destinations of the timeline feature, for the app's NavDisplay. [navigateUp] says what the Up button
+ * of the screen of a key does, or null when it has none.
+ */
+fun EntryProviderScope<NavKey>.timelineEntries(navigateUp: (NavKey) -> (() -> Unit)?) {
+    entry<HomeTimelineKey> { key ->
+        PlaceholderScreen(stringResource(R.string.home_timeline_title), onUp = navigateUp(key))
+    }
+    entry<LocalTimelineKey> { key ->
+        PlaceholderScreen(stringResource(R.string.local_timeline_title), onUp = navigateUp(key))
+    }
+    entry<FederatedTimelineKey> { key ->
+        PlaceholderScreen(stringResource(R.string.federated_timeline_title), onUp = navigateUp(key))
+    }
 }

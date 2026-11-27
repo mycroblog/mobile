@@ -3,3 +3,7 @@ plugins {
     alias(libs.plugins.mycroblog.android.library)
     alias(libs.plugins.mycroblog.android.compose)
 }
+
+dependencies {
+    implementation(libs.androidx.compose.material.icons.core)
+}

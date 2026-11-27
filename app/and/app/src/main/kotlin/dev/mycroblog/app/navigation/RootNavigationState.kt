@@ -19,7 +19,8 @@ import androidx.navigation3.runtime.rememberNavBackStack
  * goes to Home, and back from Home leaves the app.
  *
  * In the navigation bar's layout ([barLayout]), the destinations the bar has no room for are opened from the "More"
- * list ([MoreKey]), and back from their root goes to that list.
+ * list ([MoreKey]), and back from their root goes to that list. The "More" item keeps its place like the others: it
+ * reopens the destination last opened from it ([moreDestination]), and opens the list when it is already selected.
  */
 class RootNavigationState(
     /** The back stack of each top-level destination, whose root is the destination's key. */
@@ -28,6 +29,7 @@ class RootNavigationState(
     val moreStack: NavBackStack<NavKey>,
     selected: MutableState<TopLevelDestination>,
     showingMore: MutableState<Boolean>,
+    moreDestination: MutableState<TopLevelDestination?>,
     barLayout: State<Boolean>,
 ) {
     /** The top-level destination shown, or the one under the "More" list when [showingMore]. */
@@ -36,6 +38,10 @@ class RootNavigationState(
 
     /** Whether the navigation bar's "More" list is shown. */
     var showingMore by showingMore
+        private set
+
+    /** The destination the bar's "More" item reopens, the last one opened from the "More" list and not left by back. */
+    var moreDestination by moreDestination
         private set
 
     /** Whether the navigation is the bar (compact width) rather than the rail (ADR-0010 §4). */
@@ -67,10 +73,23 @@ class RootNavigationState(
     fun select(destination: TopLevelDestination) {
         selected = destination
         showingMore = false
+        if (!destination.inBar) moreDestination = destination
     }
 
+    /** The bar's "More" item: back to where the user was under it, or to the list when it is already selected. */
     fun openMore() {
-        showingMore = true
+        val destination = moreDestination
+        if (moreSelected || destination == null) showingMore = true else select(destination)
+    }
+
+    /**
+     * What the Up button of the screen of [key] does, or null when it has none: a screen above the root of its
+     * destination goes back, and so does the root of a destination opened from the "More" list.
+     */
+    fun navigateUp(key: NavKey): (() -> Unit)? {
+        val root = TopLevelDestination.entries.firstOrNull { it.key == key }
+        val hasUp = if (root == null) key != MoreKey else barLayout && !root.inBar
+        return if (hasUp) ::back else null
     }
 
     /** One step back, as the back gesture or button asks. */
@@ -78,7 +97,10 @@ class RootNavigationState(
         val stack = stacks.getValue(selected)
         when {
             selectedShown && stack.size > 1 -> stack.removeAt(stack.lastIndex)
-            barLayout && !showingMore && !selected.inBar -> showingMore = true
+            barLayout && !showingMore && !selected.inBar -> {
+                showingMore = true
+                moreDestination = null
+            }
             else -> select(TopLevelDestination.HOME)
         }
     }
@@ -94,6 +116,7 @@ fun rememberRootNavigationState(barLayout: Boolean): RootNavigationState {
     val moreStack = rememberNavBackStack(MoreKey)
     val selected = rememberSaveable { mutableStateOf(TopLevelDestination.HOME) }
     val showingMore = rememberSaveable { mutableStateOf(false) }
+    val moreDestination = rememberSaveable { mutableStateOf<TopLevelDestination?>(null) }
     val bar = rememberUpdatedState(barLayout)
-    return remember { RootNavigationState(stacks, moreStack, selected, showingMore, bar) }
+    return remember { RootNavigationState(stacks, moreStack, selected, showingMore, moreDestination, bar) }
 }

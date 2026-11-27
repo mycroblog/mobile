@@ -6,7 +6,12 @@ import androidx.navigation3.runtime.NavKey
 import dev.mycroblog.core.designsystem.PlaceholderScreen
 import dev.mycroblog.feature.search.api.SearchKey
 
-/** The destinations of the search feature, for the app's NavDisplay. */
-fun EntryProviderScope<NavKey>.searchEntries() {
-    entry<SearchKey> { PlaceholderScreen(stringResource(R.string.search_title)) }
+/**
+ * The destinations of the search feature, for the app's NavDisplay. [navigateUp] says what the Up button
+ * of the screen of a key does, or null when it has none.
+ */
+fun EntryProviderScope<NavKey>.searchEntries(navigateUp: (NavKey) -> (() -> Unit)?) {
+    entry<SearchKey> { key ->
+        PlaceholderScreen(stringResource(R.string.search_title), onUp = navigateUp(key))
+    }
 }
