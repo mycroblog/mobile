@@ -1,0 +1,20 @@
+# The single entry point of every check (ADR-0006 §3): an agent, a contributor and CI run `task check`, which
+# `scripts/kit check` also runs. Each area keeps its tasks in tasks/<area>.yml under its own namespace and has a
+# `<area>:check`; a new area is one file there, one line under `includes`, and one line under `check`.
+version: "3"
+
+output: prefixed
+
+includes:
+  docs: ./tasks/docs.yml
+  harness: ./tasks/harness.yml
+  toolchain: ./tasks/toolchain.yml
+
+tasks:
+  check:
+    desc: Run every check, each area in parallel, and report every area that fails
+    failfast: false
+    deps:
+      - toolchain:check
+      - docs:check
+      - harness:check

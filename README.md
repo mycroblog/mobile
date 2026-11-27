@@ -3,7 +3,7 @@
 Native iOS and Android clients for [mycroblog](https://github.com/mycroblog/my), a microblog for the fediverse.
 
 The iOS app lives under `app/ios` and the Android app under `app/and`. Design decisions are in
-[docs/adr/](docs/adr/).
+[docs/adr/](docs/adr/). [CONTRIBUTING.md](CONTRIBUTING.md) says what to install and how to run the checks.
 
 ## License
 

@@ -1,0 +1,21 @@
+# The pinned toolchains: the tools of .tool-versions (installed with asdf) and, on a Mac, the Xcode of .xcode-version.
+version: "3"
+
+tasks:
+  check:
+    desc: Refuse a tool that is missing or not the version pinned in .tool-versions or .xcode-version, saying what to install
+    failfast: false
+    deps: [tools, xcode]
+
+  tools:
+    desc: Check that each tool of .tool-versions is installed at its pinned version
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh tool-versions
+
+  xcode:
+    desc: Check that the selected Xcode is the one of .xcode-version (the latest released, ADR-0009 §7)
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh xcode-version

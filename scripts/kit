@@ -6,8 +6,6 @@ set -euo pipefail
 REPO="mycroblog/mobile"
 SERVER_REPO="mycroblog/my"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MARKDOWNLINT="markdownlint-cli2@0.23.2"
-KNOWLEDGE_LIMIT=4096 # bytes per file of .claude/knowledge, .claude/agents and .claude/skills (ADR-0011 §5)
 
 die() { printf 'kit: %s\n' "$*" >&2; exit 1; }
 
@@ -21,9 +19,8 @@ Usage: scripts/kit <command> [arguments]
                       and comments the plan.
   ctx <n>             Print the context of an issue: its body, its milestone, the issues of mobile and my and the my
                       commits it depends on and their state, and the ADRs of this repository it cites, as local paths.
-  check               Run every check that exists: the Markdown lint, no full-width parentheses in Markdown, the
-                      size limit of the agents' knowledge, skills and definitions, the shell lint of scripts/, and
-                      the tests of the app-driving tool (scripts/drive) and of the hooks of .claude/hooks.
+  check               Run every check that exists, through `task check` (Taskfile.yml; `task --list` lists each
+                      area's checks): the pinned toolchains, the documents, the agent harness, and each app.
   pr open [--refs]    Run `check`, push the branch and open its pull request. The branch is <type>/<issue>-<slug>;
                       the body says `Closes #<issue>`, or `Refs #<issue>` with --refs for a change that does not
                       complete the issue. Running it again on a branch that has a pull request pushes and stops.
@@ -124,64 +121,9 @@ cmd_ctx() {
 
 # --- check --------------------------------------------------------------------------------------------------------
 
-check_markdown() {
-  need npx "install Node.js (the version in .tool-versions)"
-  (cd "$ROOT" && npx -y "$MARKDOWNLINT" "**/*.md" >/dev/null 2>"$TMPDIR_KIT/mdlint") || {
-    cat "$TMPDIR_KIT/mdlint" >&2
-    printf 'kit: fix each line above as its rule says (npx %s --fix "**/*.md" fixes most), then check again.\n' "$MARKDOWNLINT" >&2
-    return 1
-  }
-}
-
-check_fullwidth_parens() {
-  local hits
-  hits="$(git -C "$ROOT" ls-files -z '*.md' | (cd "$ROOT" && xargs -0 grep -n -e '（' -e '）') || true)"
-  if [[ -n "$hits" ]]; then
-    printf '%s\n' "$hits" >&2
-    printf 'kit: full-width parentheses in Markdown: write ( and ) with a space before ( inside a sentence, and none before 、 or 。\n' >&2
-    return 1
-  fi
-}
-
-check_knowledge_size() {
-  local failed=0 f size
-  while IFS= read -r -d '' f; do
-    size="$(wc -c <"$f")"
-    if (( size > KNOWLEDGE_LIMIT )); then
-      printf 'kit: %s is %s bytes, over %s: split it by topic and name the new file in its index, or say it in fewer words.\n' \
-        "${f#"$ROOT"/}" "$size" "$KNOWLEDGE_LIMIT" >&2
-      failed=1
-    fi
-  done < <(find "$ROOT/.claude/knowledge" "$ROOT/.claude/agents" "$ROOT/.claude/skills" -name '*.md' -print0 2>/dev/null)
-  return "$failed"
-}
-
-check_shell() {
-  need shellcheck "install shellcheck (the version in .tool-versions)"
-  local files=("$ROOT/scripts/kit")
-  shopt -s nullglob
-  files+=("$ROOT"/scripts/*.sh)
-  shopt -u nullglob
-  shellcheck "${files[@]}"
-}
-
-check_tools() {
-  need node "install Node.js (the version in .tool-versions)"
-  (cd "$ROOT" && node --test tools/drive/ .claude/hooks/ >"$TMPDIR_KIT/tools" 2>&1) || {
-    grep -E '^(not ok|# fail|✖)|Error' "$TMPDIR_KIT/tools" >&2 || cat "$TMPDIR_KIT/tools" >&2
-    printf 'kit: the tests of the app-driving tool or the hooks failed: run node --test tools/drive/ .claude/hooks/ and fix the code they name.\n' >&2
-    return 1
-  }
-}
-
 cmd_check() {
-  TMPDIR_KIT="$(mktemp -d)"
-  trap 'rm -rf "$TMPDIR_KIT"' RETURN
-  local failed=0 c
-  for c in check_markdown check_fullwidth_parens check_knowledge_size check_shell check_tools; do
-    if "$c"; then printf 'ok   %s\n' "${c#check_}"; else printf 'FAIL %s\n' "${c#check_}"; failed=1; fi
-  done
-  (( failed == 0 )) || die "checks failed: fix what each FAIL above reports, then run scripts/kit check again."
+  need task "install go-task: asdf plugin add task && asdf install task (CONTRIBUTING.md)"
+  (cd "$ROOT" && task check) || die "checks failed: fix what each failing task above reports, then run scripts/kit check again."
 }
 
 # --- pr -----------------------------------------------------------------------------------------------------------
