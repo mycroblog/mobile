@@ -1,0 +1,20 @@
+# The documents: every Markdown file of the repository.
+version: "3"
+
+tasks:
+  check:
+    desc: Lint the Markdown and refuse full-width parentheses in it
+    failfast: false
+    deps: [markdown, parens]
+
+  markdown:
+    desc: Lint every Markdown file with markdownlint-cli2 (.markdownlint-cli2.jsonc)
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh markdown
+
+  parens:
+    desc: Refuse full-width parentheses in Markdown
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh fullwidth-parens

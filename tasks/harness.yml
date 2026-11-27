@@ -1,0 +1,26 @@
+# The agent harness (ADR-0011): the scripts, the app-driving tool, the hooks, and the agents' knowledge.
+version: "3"
+
+tasks:
+  check:
+    desc: Lint the shell scripts, test the app-driving tool and the hooks, and limit the size of the agents' knowledge
+    failfast: false
+    deps: [shell, tools, knowledge]
+
+  shell:
+    desc: Lint scripts/kit and the shell scripts under scripts/ with shellcheck
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh shell
+
+  tools:
+    desc: Run the tests of the app-driving tool (tools/drive) and of the hooks (.claude/hooks)
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh tools
+
+  knowledge:
+    desc: Limit each file of .claude/knowledge, .claude/agents and .claude/skills to 4096 bytes (ADR-0011 §5)
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh knowledge-size
