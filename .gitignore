@@ -8,3 +8,4 @@ app/ios/Packages/*/.build/
 app/ios/Packages/*/.swiftpm/
 app/ios/Tools/*/.build/
 app/ios/Tools/*/.swiftpm/
+.tmp/
