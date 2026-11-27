@@ -10,6 +10,7 @@ includes:
   docs: ./tasks/docs.yml
   harness: ./tasks/harness.yml
   ios: ./tasks/ios.yml
+  my: ./tasks/my.yml
   toolchain: ./tasks/toolchain.yml
 
 tasks:

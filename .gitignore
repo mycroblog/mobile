@@ -6,3 +6,4 @@ app/ios/Mycroblog.xcodeproj/
 app/ios/build/
 app/ios/Packages/*/.build/
 app/ios/Packages/*/.swiftpm/
+.tmp/
