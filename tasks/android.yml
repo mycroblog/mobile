@@ -1,13 +1,21 @@
-# The Android app (app/and): its build, with the module boundaries of ADR-0010 §6, its launch on emulators, and its
-# client of the client API (ADR-0003 §2).
+# The Android app (app/and): its build, with the module boundaries of ADR-0010 §6, its format and lint, its layout by
+# window size class (ADR-0010 §4), its launch on emulators, and its client of the client API (ADR-0003 §2).
 version: "3"
 
 tasks:
   check:
-    desc: Build the Android app and every module, failing on a dependency between modules that ADR-0010 §6 forbids
+    desc: Build the Android app and every module, failing on a dependency between modules that ADR-0010 §6 forbids, on Kotlin that ktlint or Android Lint rejects, and on layout by device, orientation or screen (ADR-0010 §4)
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh android-build
+      - scripts/check/run.sh android-lint
+      - scripts/check/run.sh android-layout
+
+  format:
+    desc: Format the hand-written Kotlin of app/and with ktlint, as .editorconfig says
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh android-format
 
   launch:
     desc: Install and launch the Android app on a phone and then a tablet emulator, and confirm that it runs

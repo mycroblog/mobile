@@ -15,6 +15,8 @@ android {
         // The UI-flow tests (ADR-0006 §1), in src/androidTest, on an emulator (task android:test-flow).
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    // The app has no launcher icon yet (MissingApplicationIcon); the baseline holds only that.
+    lint.baseline = file("lint-baseline.xml")
 }
 
 dependencies {

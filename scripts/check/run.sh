@@ -557,6 +557,78 @@ check_android_build() {
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew assembleDebug), then check again.'
 }
 
+# Downloads the jar $1 from the URL $2 to $4 once, and refuses it when its SHA-256 is not $3.
+need_pinned_jar() {
+  local name="$1" url="$2" sha256="$3" jar="$4"
+  need java "install the JDK of .tool-versions with asdf install java"
+  need curl "install curl"
+  if [[ ! -f "$jar" ]]; then
+    mkdir -p "$(dirname "$jar")"
+    curl -fsSL -o "$jar.part" "$url" || fail "could not download $name from $url: check the network, then run again."
+    mv "$jar.part" "$jar"
+  fi
+  [[ "$(shasum -a 256 "$jar" | cut -d ' ' -f 1)" == "$sha256" ]] || {
+    rm -f "$jar"
+    fail "the $name jar from $url does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change the pinned SHA-256 without checking the jar."
+  }
+}
+
+# ktlint, pinned by version and by the SHA-256 of its jar on Maven Central, formats and checks the hand-written
+# Kotlin of app/and in the style of .editorconfig; the generated client and the build output are left alone.
+KTLINT_VERSION="1.8.0"
+KTLINT_SHA256="369ad2b789f95a011f807e1fcb690ccef80bd7cd014fd139e73ae82dcc0baeab"
+KTLINT_URL="https://repo1.maven.org/maven2/com/pinterest/ktlint/ktlint-cli/$KTLINT_VERSION/ktlint-cli-$KTLINT_VERSION-all.jar"
+KTLINT_JAR="$ANDROID_APP/build/tools/ktlint-$KTLINT_VERSION.jar"
+KTLINT_FILES=('**/*.kt' '**/*.kts' '!**/src/generated/**' '!**/build/**' '!**/.gradle/**')
+
+android_ktlint() {
+  need_pinned_jar ktlint "$KTLINT_URL" "$KTLINT_SHA256" "$KTLINT_JAR"
+  (cd "$ANDROID_APP" && java -jar "$KTLINT_JAR" --relative --log-level=error "$@" "${KTLINT_FILES[@]}")
+}
+
+# Fails on Kotlin that is not formatted as ktlint formats it, and on what Android Lint finds in any module.
+check_android_lint() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
+  android_ktlint ||
+    fail 'the Kotlin above (paths under app/and) is not formatted as .editorconfig says: run task android:format, fix by hand what it cannot (each line names its ktlint rule), then check again.'
+  android_gradle lint --continue ||
+    fail 'Android Lint found the issues above: fix each as its message says (the report of each module is under app/and/<module>/build/reports), then check again. Suppress one only with @Suppress("<issue id>") and a comment that says why.'
+}
+
+check_android_format() {
+  android_ktlint --format || fail 'ktlint could not fix the lines above: fix each by hand as its rule says.'
+  printf 'android: formatted the Kotlin of app/and with ktlint %s\n' "$KTLINT_VERSION"
+}
+
+# Layout by window size class (ADR-0010 §4): hand-written Kotlin must not lay out by orientation, screen size or the
+# display. Each entry is "<extended regex>|<what to use instead>". Android Lint also holds the orientation lock
+# (LockedOrientationActivity, SourceLockedOrientationActivity) and the screen size (ConfigurationScreenWidthHeight),
+# without naming the ADR.
+ANDROID_LAYOUT_FORBIDDEN=(
+  '\.orientation\b|ORIENTATION_(PORTRAIT|LANDSCAPE|SQUARE|UNDEFINED)|orientation is not a layout signal: switch on currentWindowAdaptiveInfoV2().windowSizeClass (height compact for a landscape phone)'
+  '\b(screenWidthDp|screenHeightDp|smallestScreenWidthDp)\b|the screen size is not the window size: switch on currentWindowAdaptiveInfoV2().windowSizeClass, and size a component from LocalWindowInfo.current.containerSize'
+  '\bscreenLayout\b|SCREENLAYOUT_|the device type is not a layout signal: switch on currentWindowAdaptiveInfoV2().windowSizeClass'
+  '\b(widthPixels|heightPixels|getRealMetrics|getRealSize|defaultDisplay|getDefaultDisplay)\b|the display is not the window: switch on currentWindowAdaptiveInfoV2().windowSizeClass, and size a component from LocalWindowInfo.current.containerSize'
+  '\b(requestedOrientation|setRequestedOrientation)\b|SCREEN_ORIENTATION_|the app works in every orientation and size (API 36 ignores the lock from 600dp): lay out by currentWindowAdaptiveInfoV2().windowSizeClass instead of locking the orientation'
+)
+
+check_android_layout() {
+  local failed=0 entry pattern advice hits f
+  local files=()
+  while IFS= read -r -d '' f; do files+=("$f"); done < <(git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- 'app/and/*.kt' ':!:app/and/**/src/generated/**')
+  for entry in "${ANDROID_LAYOUT_FORBIDDEN[@]}"; do
+    pattern="${entry%|*}"
+    advice="${entry##*|}"
+    hits="$(grep -snE -- "$pattern" "${files[@]}" || true)"
+    if [[ -n "$hits" ]]; then
+      printf '%s\n' "$hits" >&2
+      printf 'check: %s (ADR-0010 §4).\n' "$advice" >&2
+      failed=1
+    fi
+  done
+  (( failed == 0 )) || fail 'the Kotlin above lays out by device, orientation or screen rather than by window size class (ADR-0010 §4): change it as each line under it says.'
+}
+
 # The Kotlin client of the client API (ADR-0003 §2): Fabrikt, pinned by version and by the SHA-256 of its jar on
 # Maven Central, generates it from shared/api/openapi.yaml into the committed sources of :core:api.
 FABRIKT_VERSION="29.2.0"
@@ -575,17 +647,7 @@ FABRIKT_OPTIONS=(
 
 # Downloads the Fabrikt jar once, and refuses it when its SHA-256 is not the pinned one.
 need_fabrikt() {
-  need java "install the JDK of .tool-versions with asdf install java"
-  need curl "install curl"
-  if [[ ! -f "$FABRIKT_JAR" ]]; then
-    mkdir -p "$(dirname "$FABRIKT_JAR")"
-    curl -fsSL -o "$FABRIKT_JAR.part" "$FABRIKT_URL" || fail "could not download Fabrikt from $FABRIKT_URL: check the network, then run again."
-    mv "$FABRIKT_JAR.part" "$FABRIKT_JAR"
-  fi
-  [[ "$(shasum -a 256 "$FABRIKT_JAR" | cut -d ' ' -f 1)" == "$FABRIKT_SHA256" ]] || {
-    rm -f "$FABRIKT_JAR"
-    fail "the Fabrikt jar from $FABRIKT_URL does not have the pinned SHA-256 and was removed: run again; if it fails again, do not change FABRIKT_SHA256 without checking the jar."
-  }
+  need_pinned_jar Fabrikt "$FABRIKT_URL" "$FABRIKT_SHA256" "$FABRIKT_JAR"
 }
 
 # Writes the Kotlin client that shared/api/openapi.yaml generates into the directory $1, replacing what it held.
@@ -809,6 +871,9 @@ case "${1:-}" in
   ios-api-generate) check_ios_api_generate "${2:-}" ;;
   ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
+  android-lint) check_android_lint ;;
+  android-format) check_android_format ;;
+  android-layout) check_android_layout ;;
   android-launch) check_android_launch ;;
   android-test) check_android_test ;;
   android-record-screenshots) check_android_record_screenshots ;;
