@@ -13,10 +13,43 @@ IOS_SIM_DESTINATION="generic/platform=iOS Simulator"
 IOS_BUNDLE_ID="dev.mycroblog.app"
 # The simulators the launch check creates and drives, by name: "<name>|<device type>".
 IOS_LAUNCH_DEVICES=("mycroblog-check-phone|iPhone 17" "mycroblog-check-ipad|iPad Air 11-inch (M4)")
-# The lock that lets only one simulator or emulator run at a time on this Mac, shared with the Android checks.
-DEVICE_LOCK="/private/tmp/mycroblog-device.lock"
+# The seats of this Mac (ADR-0012 §2): one compile and one booted device at a time, across every check and
+# scripts/drive.
+SLOT="$ROOT/scripts/check/slot.sh"
 
 fail() { printf 'check: %s\n' "$*" >&2; exit 1; }
+
+# What the check undoes when it exits, for any reason, last added first: a booted device, a temporary directory.
+CLEANUPS=()
+on_exit() { CLEANUPS+=("$1"); }
+run_cleanups() {
+  local i
+  for (( i = ${#CLEANUPS[@]} - 1; i >= 0; i-- )); do "${CLEANUPS[$i]}" || true; done
+  "$SLOT" release compile $$ || true
+  "$SLOT" release device $$ || true
+}
+trap run_cleanups EXIT
+
+# Runs the rest under the compile seat, described by $1, and gives the seat back after. A check that holds the device
+# seat may compile; one that holds the compile seat never waits for the device (take_device), so none wait in a circle.
+compiling() {
+  local what="$1" status=0
+  shift
+  "$SLOT" take compile $$ "$what"
+  COMPILING=1 "$@" || status=$?
+  "$SLOT" release compile $$ || true
+  return "$status"
+}
+
+# Takes the device seat for $1. A check that needs both seats compiles first and gives the compile seat back, so no
+# check waits for the device while it holds the compile seat (ADR-0012 §2).
+take_device() {
+  [[ -z "${COMPILING:-}" ]] || fail "a check waited for the device seat while it held the compile seat ($1): compile first, then take the device (ADR-0012 §2)."
+  "$SLOT" take device $$ "$1"
+}
+
+# Records the booted device <ios:UDID|android:SERIAL> on the device seat, so a taker of a stale seat shuts it down.
+seat_device() { "$SLOT" set device $$ "device=$1"; }
 
 need() { command -v "$1" >/dev/null 2>&1 || fail "$1 is not installed: $2 (CONTRIBUTING.md says how)."; }
 
@@ -67,9 +100,9 @@ check_tools() {
   local out
   out="$(mktemp)"
   trap 'rm -f "$out"' RETURN
-  (cd "$ROOT" && node --test tools/drive/ .claude/hooks/ >"$out" 2>&1) || {
+  (cd "$ROOT" && node --test tools/drive/ .claude/hooks/ scripts/check/ >"$out" 2>&1) || {
     grep -E '^(not ok|# fail|✖)|Error' "$out" >&2 || cat "$out" >&2
-    fail 'the tests of the app-driving tool or the hooks failed: run node --test tools/drive/ .claude/hooks/ and fix the code they name.'
+    fail 'the tests of the app-driving tool, the hooks or the seats failed: run node --test tools/drive/ .claude/hooks/ scripts/check/ and fix the code they name.'
   }
 }
 
@@ -228,7 +261,7 @@ check_ios_dependencies() {
 ios_xcodebuild() {
   local out
   out="$(mktemp)"
-  if ! xcodebuild -destination "$IOS_SIM_DESTINATION" "$@" build >"$out" 2>&1; then
+  if ! compiling "xcodebuild $*" xcodebuild -destination "$IOS_SIM_DESTINATION" "$@" build >"$out" 2>&1; then
     grep -E 'error:|BUILD FAILED' "$out" >&2 || tail -n 30 "$out" >&2
     rm -f "$out"
     return 1
@@ -269,7 +302,7 @@ ios_api_generate_into() {
   need swift "install Xcode $(tr -d '[:space:]' <"$ROOT/.xcode-version") (CONTRIBUTING.md)"
   mkdir -p "$out"
   log="$(mktemp)"
-  if ! (cd "$IOS_API_GENERATOR" && swift run -c release swift-openapi-generator generate \
+  if ! (cd "$IOS_API_GENERATOR" && compiling "swift-openapi-generator" swift run -c release swift-openapi-generator generate \
     --config "$IOS_API/openapi-generator-config.yaml" --output-directory "$out" "$API_DOCUMENT") >"$log" 2>&1; then
     grep -E 'error' "$log" >&2 || tail -n 30 "$log" >&2
     rm -f "$log"
@@ -327,10 +360,11 @@ ios_sim_device() {
 }
 
 IOS_BOOTED=""
-ios_launch_cleanup() {
+ios_shutdown() {
   [[ -n "$IOS_BOOTED" ]] && xcrun simctl shutdown "$IOS_BOOTED" >/dev/null 2>&1
-  rmdir "$DEVICE_LOCK" 2>/dev/null || true
+  IOS_BOOTED=""
 }
+on_exit ios_shutdown
 
 # Installs the app on each simulator of IOS_LAUNCH_DEVICES in turn, launches it, and confirms that its process is
 # still running a few seconds later; one simulator runs at a time and each is shut down after.
@@ -338,13 +372,13 @@ check_ios_launch() {
   need jq "install jq with brew install jq"
   local app="$IOS_BUILD/app/Build/Products/Debug-iphonesimulator/Mycroblog.app" entry name type udid pid running
   [[ -d "$app" ]] || check_ios_build
-  take_device_lock
-  trap ios_launch_cleanup EXIT
+  take_device "the iOS launch check"
   for entry in "${IOS_LAUNCH_DEVICES[@]}"; do
     name="${entry%%|*}"
     type="${entry#*|}"
     udid="$(ios_sim_device "$name" "$type")"
     IOS_BOOTED="$udid"
+    seat_device "ios:$udid"
     xcrun simctl bootstatus "$udid" -b >/dev/null || fail "the simulator $name did not boot: open Simulator and boot $name to see why."
     xcrun simctl install "$udid" "$app" || fail "could not install the app on $name."
     pid="$(xcrun simctl launch "$udid" "$IOS_BUNDLE_ID" | sed -n 's/.*: //p')"
@@ -354,8 +388,7 @@ check_ios_launch() {
     [[ "$running" == "$pid" ]] ||
       fail "the app launched on $name as process $pid but is not running 3 s later: see its crash log in ~/Library/Logs/DiagnosticReports, or run xcrun simctl launch --console $udid $IOS_BUNDLE_ID."
     printf 'ios: the app runs on %s (%s) as process %s.\n' "$name" "$type" "$pid"
-    xcrun simctl shutdown "$udid" >/dev/null
-    IOS_BOOTED=""
+    ios_shutdown
   done
 }
 
@@ -364,31 +397,45 @@ IOS_TEST_DEVICE="mycroblog-check-phone|iPhone 17"
 IOS_TEST_RESULTS="$IOS_BUILD/test"
 IOS_TEST_UDID=""
 
-# Takes the device lock and boots the test simulator; it is shut down and the lock released when the check exits.
+# Takes the device seat and boots the test simulator; it is shut down and the seat given back when the check exits.
 ios_test_boot() {
   need jq "install jq with brew install jq"
   local name="${IOS_TEST_DEVICE%%|*}" type="${IOS_TEST_DEVICE#*|}"
-  take_device_lock
-  trap ios_launch_cleanup EXIT
+  take_device "the iOS tests"
   IOS_TEST_UDID="$(ios_sim_device "$name" "$type")"
   IOS_BOOTED="$IOS_TEST_UDID"
+  seat_device "ios:$IOS_TEST_UDID"
   xcrun simctl bootstatus "$IOS_TEST_UDID" -b >/dev/null || fail "the simulator $name did not boot: open Simulator and boot $name to see why."
 }
 
-# Runs `xcodebuild test` for the layer $1 on the booted test simulator, with the rest as its arguments, into the result
-# bundle $IOS_TEST_RESULTS/$1.xcresult; prints how long it took, and the failed tests and their issues when it fails.
-# Variables named TEST_RUNNER_<NAME> in its environment reach the tests as <NAME>.
+# The phase of the iOS tests: build (for testing, under the compile seat, with no simulator), then run (on the booted
+# test simulator, under the device seat), so the simulator never waits for a compile (ADR-0012 §2).
+IOS_TEST_PHASE=build
+
+# Builds the layer $1 for testing, or runs it on the booted test simulator, by IOS_TEST_PHASE, with the rest as the
+# arguments of xcodebuild, into the result bundle $IOS_TEST_RESULTS/$1.xcresult; prints how long it took, and the
+# failed tests and their issues when it fails. Variables named TEST_RUNNER_<NAME> in its environment reach the tests.
 ios_test_layer() {
   local layer="$1" log result start status=0
   shift
   mkdir -p "$IOS_TEST_RESULTS"
-  log="$IOS_TEST_RESULTS/$layer.log"
+  log="$IOS_TEST_RESULTS/$layer-$IOS_TEST_PHASE.log"
   result="$IOS_TEST_RESULTS/$layer.xcresult"
-  rm -rf "$result"
   start=$SECONDS
+  if [[ "$IOS_TEST_PHASE" == build ]]; then
+    local arg build=()
+    for arg in "$@"; do [[ "$arg" == -only-testing:* ]] || build+=("$arg"); done # which tests run is for the run phase
+    compiling "the iOS $layer tests" xcodebuild build-for-testing -destination "$IOS_SIM_DESTINATION" "${build[@]}" >"$log" 2>&1 || {
+      grep -E 'error:|BUILD FAILED' "$log" >&2 || tail -n 30 "$log" >&2
+      printf 'ios: the %s tests do not build; the log is %s.\n' "$layer" "${log#"$ROOT"/}" >&2
+      return 1
+    }
+    return 0
+  fi
+  rm -rf "$result"
   # One simulator, the booted one: no clones for parallel testing.
-  xcodebuild test -destination "id=$IOS_TEST_UDID" -parallel-testing-enabled NO -disable-concurrent-destination-testing \
-    -resultBundlePath "$result" "$@" >"$log" 2>&1 || status=$?
+  xcodebuild test-without-building -destination "id=$IOS_TEST_UDID" -parallel-testing-enabled NO \
+    -disable-concurrent-destination-testing -resultBundlePath "$result" "$@" >"$log" 2>&1 || status=$?
   if (( status != 0 )); then
     # The failed tests with their issues: an issue of Swift Testing goes on in the lines that start with ↳ or spaces.
     awk '/^✘|error:|Test Case .* failed|BUILD FAILED/ { print; more = 1; next }
@@ -419,15 +466,20 @@ ios_test_unit() {
 
 # The integration tests: the API package's client against the local my of scripts/my.sh, which the task starts.
 ios_test_integration() {
-  local url
-  url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task ios:test does)."
+  local url=""
+  [[ "$IOS_TEST_PHASE" == build ]] ||
+    url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task ios:test does)."
   (cd "$IOS/Packages/API" && TEST_RUNNER_MY_URL="$url" \
     ios_test_layer integration -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APIIntegrationTests) ||
     fail "the integration tests against my at $url failed: read the issues above; scripts/my.sh says where my's log is (.tmp/my.log)."
 }
 
-# The unit and integration tests, one simulator under the device lock.
+# The unit and integration tests: built first, then run on one simulator under the device seat.
 check_ios_test() {
+  IOS_TEST_PHASE=build
+  ios_test_unit
+  ios_test_integration
+  IOS_TEST_PHASE=run
   ios_test_boot
   ios_test_unit
   ios_test_integration
@@ -436,8 +488,12 @@ check_ios_test() {
 # The UI-flow tests: XCUITest drives the app, built for testing, on the test simulator.
 check_ios_test_flow() {
   [[ -d "$IOS/Mycroblog.xcodeproj" ]] || check_ios_generate
+  local args=(-project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app")
+  IOS_TEST_PHASE=build
+  ios_test_layer flow "${args[@]}" || fail "the UI-flow tests do not build: fix the errors above."
+  IOS_TEST_PHASE=run
   ios_test_boot
-  ios_test_layer flow -project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app" ||
+  ios_test_layer flow "${args[@]}" ||
     fail "the UI-flow tests failed: the result bundle above holds a screen recording and the screens of each step."
 }
 
@@ -513,8 +569,11 @@ need_android_sdk() {
   done
 }
 
+# Runs Gradle under the compile seat. No daemon is kept, and Kotlin compiles inside Gradle: an idle daemon would keep
+# its memory after the seat is given back, and the next compile on the seat would not fit (ADR-0012 §1, §2).
 android_gradle() {
-  (cd "$ANDROID_APP" && ANDROID_HOME="$ANDROID_SDK" ./gradlew --console=plain -q "$@")
+  (cd "$ANDROID_APP" && ANDROID_HOME="$ANDROID_SDK" compiling "gradle $*" ./gradlew --console=plain -q --no-daemon \
+    -Pkotlin.compiler.execution.strategy=in-process "$@")
 }
 
 check_android_build() {
@@ -651,11 +710,12 @@ check_android_api_generate() {
 
 # Regenerates the Kotlin client into a temporary directory and fails when it differs from the committed one.
 ANDROID_API_CHECK_DIR=""
+android_api_check_cleanup() { [[ -n "$ANDROID_API_CHECK_DIR" ]] && rm -rf "$ANDROID_API_CHECK_DIR"; }
 check_android_api_check() {
   local tmp diffs
   tmp="$(mktemp -d)"
   ANDROID_API_CHECK_DIR="$tmp"
-  trap 'rm -rf "$ANDROID_API_CHECK_DIR"' EXIT
+  on_exit android_api_check_cleanup
   android_api_generate "$tmp/kotlin"
   diffs="$(diff -rq "$ANDROID_API_SOURCES" "$tmp/kotlin" 2>&1 | sed -e "s|$ANDROID_API_SOURCES|${ANDROID_API_SOURCES#"$ROOT"/}|g" -e "s|$tmp/kotlin|(generated)|g" || true)"
   if [[ -n "$diffs" ]]; then
@@ -666,7 +726,7 @@ check_android_api_check() {
 }
 
 EMULATOR_PID=""
-HOLDS_DEVICE_LOCK=""
+on_exit stop_emulator
 
 stop_emulator() {
   if [[ -n "$EMULATOR_PID" ]] && kill -0 "$EMULATOR_PID" 2>/dev/null; then
@@ -677,25 +737,10 @@ stop_emulator() {
   EMULATOR_PID=""
 }
 
+# Stops the emulator and gives the device seat back.
 release_device() {
   stop_emulator
-  if [[ -n "$HOLDS_DEVICE_LOCK" ]]; then
-    rmdir "$DEVICE_LOCK" 2>/dev/null || true
-    HOLDS_DEVICE_LOCK=""
-  fi
-}
-
-# Takes the lock that lets one simulator or emulator run at a time on this Mac, waiting while another check holds it.
-take_device_lock() {
-  local waited=0
-  until mkdir "$DEVICE_LOCK" 2>/dev/null; do
-    (( waited == 0 )) && printf 'check: waiting for %s, held while another simulator or emulator runs\n' "$DEVICE_LOCK" >&2
-    (( waited >= 1800 )) &&
-      fail "$DEVICE_LOCK was held for 30 minutes: if no simulator or emulator is running, rmdir it and check again."
-    sleep 5
-    waited=$(( waited + 5 ))
-  done
-  HOLDS_DEVICE_LOCK=1
+  "$SLOT" release device $$ || true
 }
 
 # Boots the AVD drive-<kind> (the one scripts/drive uses) as emulator-$ANDROID_CONSOLE_PORT, creating it as a
@@ -711,6 +756,7 @@ boot_android() {
   "$ANDROID_SDK/emulator/emulator" -avd "$avd" -port "$ANDROID_CONSOLE_PORT" -no-window -no-snapshot-save -no-boot-anim \
     -no-audio -gpu host >"$log" 2>&1 &
   EMULATOR_PID=$!
+  seat_device "android:$serial"
   "$adb" start-server >/dev/null 2>&1
   deadline=$(( SECONDS + 300 ))
   until [[ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; do
@@ -749,8 +795,7 @@ check_android_launch() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
   android_gradle :app:assembleDebug ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebug), then check again.'
-  trap release_device EXIT
-  take_device_lock
+  take_device "the Android launch check"
   launch_android_on phone pixel_9
   launch_android_on tablet pixel_tablet
   release_device
@@ -767,13 +812,12 @@ check_android_test() {
 }
 
 # The UI-flow tests of the Android app (ADR-0006 §1), the instrumented tests of app/src/androidTest, on the phone
-# emulator drive-phone under the device lock.
+# emulator drive-phone under the device seat.
 check_android_test_flow() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
   android_gradle :app:assembleDebug :app:assembleDebugAndroidTest ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebugAndroidTest), then check again.'
-  trap release_device EXIT
-  take_device_lock
+  take_device "the Android UI-flow tests"
   boot_android phone pixel_9
   ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest ||
     fail "the Android UI-flow tests failed on drive-phone: fix what each failed test says above; the report is app/and/app/build/reports/androidTests/connected/debug/index.html."

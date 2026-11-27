@@ -14,7 +14,7 @@ const SCREEN = {
 const PNG = Buffer.from('png').toString('base64');
 
 function fakeDeps({ state, sh = () => '', send } = {}) {
-  const calls = { sh: [], send: [], files: {} };
+  const calls = { sh: [], send: [], files: {}, slot: [] };
   const states = { ...state };
   const deps = {
     root: '/repo',
@@ -32,6 +32,8 @@ function fakeDeps({ state, sh = () => '', send } = {}) {
       return send ? send(request) : { ok: true, tree: SCREEN, screenshot: PNG };
     },
     waitForRunner: async () => {},
+    slot: (args) => (calls.slot.push(args.join(' ')), ''),
+    pid: 7,
     readState: (name) => states[name] ?? null,
     writeState: (name, s) => (states[name] = s),
     writeFile: (file, data) => (calls.files[file] = data),
@@ -272,4 +274,47 @@ test('an emulator that exits while booting fails the start at once', async () =>
   const code = await main(['android', 'start'], f.deps);
   assert.notEqual(code, 0);
   assert.match(f.calls.err, /the emulator of drive-phone exited while booting: read \/state\/android-emulator.log/);
+});
+
+test('a start builds under the compile seat, then boots under the device seat, which its runner holds after', async () => {
+  const order = [];
+  const f = fakeDeps({
+    sh: (cmd, args) => {
+      order.push(`sh ${cmd} ${args[0]}`);
+      if (args.join(' ').includes('list devices')) return JSON.stringify({ devices: { r: [{ name: 'drive-phone', udid: 'UDID' }] } });
+      if (cmd === 'find') return '/state/ios-build/Build/Products/x.xctestrun\n';
+      return '';
+    },
+  });
+  f.deps.slot = (args) => (order.push(`slot ${args.join(' ')}`), '');
+  assert.equal(await main(['ios', 'start'], f.deps), 0, f.calls.err);
+  const at = (s) => order.findIndex((o) => o.startsWith(s));
+  assert.ok(at('slot take compile 7') < at('sh xcodebuild build-for-testing'));
+  assert.ok(at('sh xcodebuild build-for-testing') < at('slot release compile 7'));
+  assert.ok(at('slot release compile 7') < at('slot take device 7'), 'no wait for the device while holding the compile seat');
+  assert.ok(at('slot take device 7') < at('sh xcrun simctl'), 'the device is touched only under its seat');
+  assert.ok(order.includes('slot set device 7 device=ios:UDID idle=900'));
+  assert.ok(order.includes('slot set device 7 pid=4242'), 'the runner holds the seat');
+});
+
+test('a failed start shuts its simulator down and gives the device seat back', async () => {
+  const f = fakeDeps({
+    sh: (cmd, args) => {
+      if (args.join(' ').includes('list devices')) return JSON.stringify({ devices: { r: [{ name: 'drive-phone', udid: 'UDID' }] } });
+      if (cmd === 'find') return '/state/ios-build/Build/Products/x.xctestrun\n';
+      return '';
+    },
+  });
+  f.deps.waitForRunner = async () => { throw new Error('the runner did not answer'); };
+  assert.notEqual(await main(['ios', 'start'], f.deps), 0);
+  assert.ok(f.calls.sh.includes('xcrun simctl shutdown UDID'));
+  assert.equal(f.calls.slot.at(-1), 'release device 4242');
+  assert.equal(f.states.ios, null);
+});
+
+test('a step marks the device seat as used, and stop gives it back', async () => {
+  const f = await run(['ios', 'look'], { state: IOS });
+  assert.deepEqual(f.calls.slot, ['touch device']);
+  const s = await run(['ios', 'stop'], { state: IOS });
+  assert.deepEqual(s.calls.slot, ['release device 1']);
 });

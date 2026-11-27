@@ -14,7 +14,7 @@ tasks:
       - scripts/check/run.sh shell
 
   tools:
-    desc: Run the tests of the app-driving tool (tools/drive) and of the hooks (.claude/hooks)
+    desc: Run the tests of the app-driving tool (tools/drive), the hooks (.claude/hooks) and the seats (scripts/check/slot.sh)
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh tools

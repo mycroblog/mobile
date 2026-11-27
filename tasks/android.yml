@@ -43,7 +43,7 @@ tasks:
       - scripts/check/run.sh android-test
 
   test-flow:
-    desc: Run the Android UI-flow tests on the phone emulator drive-phone, under the device lock
+    desc: Run the Android UI-flow tests on the phone emulator drive-phone, under the device seat
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh android-test-flow

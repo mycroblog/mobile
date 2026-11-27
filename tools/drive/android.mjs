@@ -8,6 +8,8 @@ const ROTATIONS = { portrait: 0, 'landscape-left': 1, 'upside-down': 2, 'landsca
 const FONT_SCALES = { default: '1.0', larger: '1.3', largest: '1.5', accessibility: '2.0' };
 const RUNNER = 'dev.mycroblog.drive.runner';
 const DEVICE_PORT = 9008;
+// How long a session may go unused before its device seat may be taken over (ADR-0012 §2).
+const SEAT_IDLE = 900;
 
 // One shell word for `adb shell`, which joins its arguments into one command line for the device's shell.
 export const quote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
@@ -113,33 +115,63 @@ const steps = {
     if (old?.runnerPid && deps.alive(old.runnerPid)) {
       throw new StepError(`an android session is running on ${old.kind}: run "scripts/drive android stop" first`);
     }
-    const avd = `drive-${kind}`;
-    const avds = deps.sh(path.join(sdk, 'emulator/emulator'), ['-list-avds']).split('\n');
-    if (!avds.includes(avd)) {
-      deps.sh(path.join(sdk, 'cmdline-tools/latest/bin/avdmanager'),
-        ['create', 'avd', '-n', avd, '-k', latestImage(deps, sdk), '-d', DEVICES[kind]], { input: 'no\n' });
-    }
-    const device = `emulator-${ctx.consolePort}`;
-    // The resizable AVD changes size only through its window, so it keeps one.
-    const window = kind === 'resizable' ? [] : ['-no-window'];
-    const log = path.join(deps.stateDir, 'android-emulator.log');
-    const emulatorPid = deps.spawnDetached(path.join(sdk, 'emulator/emulator'),
-      ['-avd', avd, '-port', String(ctx.consolePort), '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host', ...window],
-      { log });
-    deps.writeState('android', { kind, device, port: ctx.port, emulatorPid, runnerPid: null, app: null });
-    waitForBoot(ctx, avd, emulatorPid, log);
+    // The runner is built first, under the compile seat, and the emulator booted after, under the device seat, so
+    // the booted emulator never waits for a compile and no one waits for the device holding the compile seat. Gradle
+    // keeps no daemon, which would hold its memory after the seat is given back (ADR-0012 §2).
     const project = path.join(deps.root, 'tools/drive/android');
-    deps.sh(path.join(project, 'gradlew'), ['-q', ':runner:assembleDebug', ':runner:assembleDebugAndroidTest'],
+    deps.slot(['take', 'compile', String(deps.pid), 'scripts/drive android: building the runner']);
+    try {
+      deps.sh(path.join(project, 'gradlew'), ['-q', '--no-daemon', '-Pkotlin.compiler.execution.strategy=in-process',
+        ':runner:assembleDebug', ':runner:assembleDebugAndroidTest'],
       { cwd: project, env: { ...deps.env, ANDROID_HOME: sdk, JAVA_HOME: javaHome(deps, project) } });
-    const apks = path.join(project, 'runner/build/outputs/apk');
-    ctx.adb('install', '-r', '-t', path.join(apks, 'debug/runner-debug.apk'));
-    ctx.adb('install', '-r', '-t', path.join(apks, 'androidTest/debug/runner-debug-androidTest.apk'));
-    ctx.adb('forward', `tcp:${ctx.port}`, `tcp:${DEVICE_PORT}`);
-    const runnerPid = deps.spawnDetached(ctx.adbPath, ['-s', device, 'shell', 'am', 'instrument', '-w',
-      '-e', 'class', `${RUNNER}.Server#serve`, '-e', 'port', String(DEVICE_PORT),
-      `${RUNNER}.test/androidx.test.runner.AndroidJUnitRunner`], { log: path.join(deps.stateDir, 'android-runner.log') });
-    deps.writeState('android', { ...deps.readState('android'), runnerPid });
-    await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+    } finally {
+      deps.slot(['release', 'compile', String(deps.pid)]);
+    }
+    const avd = `drive-${kind}`;
+    const device = `emulator-${ctx.consolePort}`;
+    let holder = deps.pid;
+    deps.slot(['take', 'device', String(holder), `scripts/drive android on ${kind}`]);
+    let emulatorPid = null;
+    try {
+      const avds = deps.sh(path.join(sdk, 'emulator/emulator'), ['-list-avds']).split('\n');
+      if (!avds.includes(avd)) {
+        deps.sh(path.join(sdk, 'cmdline-tools/latest/bin/avdmanager'),
+          ['create', 'avd', '-n', avd, '-k', latestImage(deps, sdk), '-d', DEVICES[kind]], { input: 'no\n' });
+      }
+      // The resizable AVD changes size only through its window, so it keeps one.
+      const window = kind === 'resizable' ? [] : ['-no-window'];
+      const log = path.join(deps.stateDir, 'android-emulator.log');
+      emulatorPid = deps.spawnDetached(path.join(sdk, 'emulator/emulator'),
+        ['-avd', avd, '-port', String(ctx.consolePort), '-no-snapshot-save', '-no-boot-anim', '-gpu', 'host', ...window],
+        { log });
+      // Unused for SEAT_IDLE seconds, the session's seat may be taken over and its emulator shut down.
+      deps.slot(['set', 'device', String(holder), `device=android:${device}`, `idle=${SEAT_IDLE}`]);
+      deps.writeState('android', { kind, device, port: ctx.port, emulatorPid, runnerPid: null, app: null });
+      waitForBoot(ctx, avd, emulatorPid, log);
+      const apks = path.join(project, 'runner/build/outputs/apk');
+      ctx.adb('install', '-r', '-t', path.join(apks, 'debug/runner-debug.apk'));
+      ctx.adb('install', '-r', '-t', path.join(apks, 'androidTest/debug/runner-debug-androidTest.apk'));
+      ctx.adb('forward', `tcp:${ctx.port}`, `tcp:${DEVICE_PORT}`);
+      const runnerPid = deps.spawnDetached(ctx.adbPath, ['-s', device, 'shell', 'am', 'instrument', '-w',
+        '-e', 'class', `${RUNNER}.Server#serve`, '-e', 'port', String(DEVICE_PORT),
+        `${RUNNER}.test/androidx.test.runner.AndroidJUnitRunner`], { log: path.join(deps.stateDir, 'android-runner.log') });
+      // The runner, which lives as long as the session, holds the seat from here.
+      deps.slot(['set', 'device', String(holder), `pid=${runnerPid}`]);
+      holder = runnerPid;
+      deps.writeState('android', { ...deps.readState('android'), runnerPid });
+      await deps.waitForRunner(ctx.port, () => deps.alive(runnerPid));
+    } catch (e) {
+      if (emulatorPid && deps.alive(emulatorPid)) {
+        try {
+          deps.sh(ctx.adbPath, ['-s', device, 'emu', 'kill']);
+        } catch {
+          // the emulator is gone already
+        }
+      }
+      deps.writeState('android', null);
+      deps.slot(['release', 'device', String(holder)]);
+      throw e;
+    }
     return ctx.runner.call('look');
   },
 
@@ -159,6 +191,7 @@ const steps = {
     }
     for (const pid of [state.runnerPid, state.emulatorPid]) if (pid) deps.kill(pid);
     deps.writeState('android', null);
+    deps.slot(['release', 'device', String(state.runnerPid)]);
     return { message: `stopped; the AVD drive-${state.kind} is kept for the next start` };
   },
 
