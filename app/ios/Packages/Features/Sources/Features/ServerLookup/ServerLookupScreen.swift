@@ -7,6 +7,8 @@ import SwiftUI
 public struct ServerLookupScreen: View {
     @Bindable private var model: ServerLookupModel
     @Environment(\.dismiss) private var dismiss
+    /// Whether the address field has the keyboard; a lookup ends it, so that what it shows is not under the keyboard.
+    @FocusState private var isAddressFocused: Bool
 
     public init(model: ServerLookupModel) {
         self.model = model
@@ -21,6 +23,7 @@ public struct ServerLookupScreen: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityLabel(Text("Server address"))
+                    .focused($isAddressFocused)
                     .submitLabel(.go)
                     .onSubmit(lookUp)
                 Button("Look up", action: lookUp)
@@ -53,10 +56,12 @@ public struct ServerLookupScreen: View {
         "Enter a server address such as example.social."
 
     private func lookUp() {
+        isAddressFocused = false
         Task { await model.lookUp() }
     }
 
     private func tryAgain() {
+        isAddressFocused = false
         Task { await model.tryAgain() }
     }
 }
