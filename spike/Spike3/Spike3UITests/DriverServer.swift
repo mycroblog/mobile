@@ -55,7 +55,7 @@ final class DriverServer: XCTestCase {
             out["ok"] = false; out["error"] = "\(error)"
         }
         // Every command that changes something can ask for the tree and the screenshot in the same reply.
-        if cmd["tree"] as? Bool == true { out["tree"] = tree() }
+        if cmd["tree"] as? Bool == true { out["tree"] = tree(cmd) }
         if let path = cmd["screenshot"] as? String {
             try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: path))
             out["screenshot"] = path
@@ -66,13 +66,20 @@ final class DriverServer: XCTestCase {
 
     struct Failure: Error, CustomStringConvertible { let description: String }
 
+    /// `springboard: true` or `bundle: "<id>"` acts on another app than Spike3 (alerts, banners, a share source).
+    @MainActor private func target(_ cmd: [String: Any]) -> XCUIApplication {
+        if cmd["springboard"] as? Bool == true { return springboard }
+        if let b = cmd["bundle"] as? String { return XCUIApplication(bundleIdentifier: b) }
+        return app
+    }
+
     @MainActor private func element(_ cmd: [String: Any]) throws -> XCUIElement {
-        let target = (cmd["springboard"] as? Bool == true) ? springboard : app
-        let q = target.descendants(matching: .any)
+        let q = target(cmd).descendants(matching: .any)
         let e: XCUIElement
         if let id = cmd["id"] as? String { e = q[id].firstMatch }
         else if let label = cmd["label"] as? String { e = q.matching(NSPredicate(format: "label == %@", label)).firstMatch }
-        else { throw Failure(description: "need id or label") }
+        else if let ph = cmd["placeholder"] as? String { e = q.matching(NSPredicate(format: "placeholderValue == %@", ph)).firstMatch }
+        else { throw Failure(description: "need id, label or placeholder") }
         guard e.waitForExistence(timeout: (cmd["timeout"] as? Double) ?? 2) else { throw Failure(description: "no element") }
         return e
     }
@@ -82,11 +89,10 @@ final class DriverServer: XCTestCase {
         case "ping": break
         case "tap":
             if let x = cmd["x"] as? Double, let y = cmd["y"] as? Double {
-                let base = (cmd["springboard"] as? Bool == true) ? springboard : app
-                base.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: y)).tap()
+                target(cmd).coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: y)).tap()
             } else { try element(cmd).tap() }
         case "type":
-            if cmd["id"] != nil || cmd["label"] != nil { let e = try element(cmd); e.tap(); e.typeText(cmd["text"] as? String ?? "") }
+            if cmd["id"] != nil || cmd["label"] != nil || cmd["placeholder"] != nil { let e = try element(cmd); e.tap(); e.typeText(cmd["text"] as? String ?? "") }
             else { app.typeText(cmd["text"] as? String ?? "") }
         case "swipe":
             let e = (cmd["id"] != nil || cmd["label"] != nil) ? try element(cmd) : app
@@ -109,20 +115,34 @@ final class DriverServer: XCTestCase {
             app = XCUIApplication(bundleIdentifier: "blog.mycro.spike3")
             app.launchArguments = cmd["args"] as? [String] ?? []
             app.launch()
-        case "activate": app.activate()
+        case "activate": target(cmd).activate()
         case "terminate": app.terminate()
         case "state": out["state"] = app.state.rawValue
-        case "tree": out["tree"] = tree()
+        case "tree": out["tree"] = tree(cmd)
         case "quit": done = true
         default: throw Failure(description: "unknown op \(op)")
         }
     }
 
     /// One line per element: indentation, type, "label", [identifier], =value, @x,y,wxh. Groups without a label are folded.
-    @MainActor private func tree() -> String {
-        let root: XCUIElement = app.state == .runningForeground ? app : springboard
-        guard let snap = try? root.snapshot() else { return "<no snapshot>" }
+    /// The tree is the app's (Spike3, or `bundle`), then SpringBoard's when the app is not in front or SpringBoard
+    /// shows an alert or a banner over it: XCUITest snapshots one app at a time.
+    @MainActor private func tree(_ cmd: [String: Any] = [:]) -> String {
+        let main = target(cmd)
+        var roots: [XCUIElement] = []
+        if main.state == .runningForeground { roots.append(main) }
+        if roots.isEmpty || springboard.alerts.count > 0 || springboard.otherElements["NotificationShortLookView"].exists {
+            roots.append(springboard)
+        }
         var lines: [String] = []
+        for root in roots {
+            guard let snap = try? root.snapshot() else { lines.append("<no snapshot>"); continue }
+            walk(snap, 0, &lines)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func walk(_ snap: XCUIElementSnapshot, _ depth: Int, _ lines: inout [String]) {
         func walk(_ s: XCUIElementSnapshot, _ depth: Int) {
             var d = depth
             let keep = !(s.elementType == .other && s.label.isEmpty && s.identifier.isEmpty)
@@ -140,8 +160,7 @@ final class DriverServer: XCTestCase {
             }
             for c in s.children { walk(c, d) }
         }
-        walk(snap, 0)
-        return lines.joined(separator: "\n")
+        walk(snap, depth)
     }
 
     private static func name(_ t: XCUIElement.ElementType) -> String {
