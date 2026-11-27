@@ -34,8 +34,10 @@ Given an epic or a milestone, you are the orchestrator. Before building:
    - A feature for both apps: the API generation first, then `swift-developer` and `kotlin-developer` in parallel,
      then `swift-test-developer` and `kotlin-test-developer`, each given the issue and its developer's report, not
      the code. `routine` for mechanical work.
-   - A UI change: until the evaluator roles exist (#17), show the decider each app running, on both widths of
-     ADR-0009 §2 and ADR-0010 §4.
+   - A UI change: `ios-evaluator` and `android-evaluator` in parallel, each in a fresh context and given only the
+     done-when, the app's id and build, and the device kinds (both widths of ADR-0009 §2 and ADR-0010 §4); then
+     `parity-checker` with both reports. A new screen or flow also gets `ios-walker` and `android-walker`. Fix what
+     blocks, run them again, and only then show the decider the screenshots and the verdicts.
 5. Bring the branch up to date with `git rebase origin/main`; `scripts/kit check` is the local check.
 6. `scripts/kit pr open` (`--refs` when the change does not complete the issue), then `scripts/kit pr land <pr>`
    in the background, and end the turn until it reports. Fix what it reports at once.

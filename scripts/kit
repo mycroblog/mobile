@@ -23,7 +23,7 @@ Usage: scripts/kit <command> [arguments]
                       commits it depends on and their state, and the ADRs of this repository it cites, as local paths.
   check               Run every check that exists: the Markdown lint, no full-width parentheses in Markdown, the
                       size limit of the agents' knowledge, skills and definitions, the shell lint of scripts/, and
-                      the tests of the app-driving tool (scripts/drive).
+                      the tests of the app-driving tool (scripts/drive) and of the hooks of .claude/hooks.
   pr open [--refs]    Run `check`, push the branch and open its pull request. The branch is <type>/<issue>-<slug>;
                       the body says `Closes #<issue>`, or `Refs #<issue>` with --refs for a change that does not
                       complete the issue. Running it again on a branch that has a pull request pushes and stops.
@@ -165,11 +165,11 @@ check_shell() {
   shellcheck "${files[@]}"
 }
 
-check_drive() {
+check_tools() {
   need node "install Node.js (the version in .tool-versions)"
-  (cd "$ROOT" && node --test tools/drive/ >"$TMPDIR_KIT/drive" 2>&1) || {
-    grep -E '^(not ok|# fail|✖)|Error' "$TMPDIR_KIT/drive" >&2 || cat "$TMPDIR_KIT/drive" >&2
-    printf 'kit: the tests of the app-driving tool failed: run node --test tools/drive/ and fix the code they name.\n' >&2
+  (cd "$ROOT" && node --test tools/drive/ .claude/hooks/ >"$TMPDIR_KIT/tools" 2>&1) || {
+    grep -E '^(not ok|# fail|✖)|Error' "$TMPDIR_KIT/tools" >&2 || cat "$TMPDIR_KIT/tools" >&2
+    printf 'kit: the tests of the app-driving tool or the hooks failed: run node --test tools/drive/ .claude/hooks/ and fix the code they name.\n' >&2
     return 1
   }
 }
@@ -178,7 +178,7 @@ cmd_check() {
   TMPDIR_KIT="$(mktemp -d)"
   trap 'rm -rf "$TMPDIR_KIT"' RETURN
   local failed=0 c
-  for c in check_markdown check_fullwidth_parens check_knowledge_size check_shell check_drive; do
+  for c in check_markdown check_fullwidth_parens check_knowledge_size check_shell check_tools; do
     if "$c"; then printf 'ok   %s\n' "${c#check_}"; else printf 'FAIL %s\n' "${c#check_}"; failed=1; fi
   done
   (( failed == 0 )) || die "checks failed: fix what each FAIL above reports, then run scripts/kit check again."
