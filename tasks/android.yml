@@ -1,0 +1,15 @@
+# The Android app (app/and): its build, with the module boundaries of ADR-0010 §6, and its launch on emulators.
+version: "3"
+
+tasks:
+  check:
+    desc: Build the Android app and every module, failing on a dependency between modules that ADR-0010 §6 forbids
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh android-build
+
+  launch:
+    desc: Install and launch the Android app on a phone and then a tablet emulator, and confirm that it runs
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh android-launch

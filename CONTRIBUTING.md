@@ -36,7 +36,25 @@ The checks run on macOS on Apple silicon. Each step below is what `task check` a
    from `app/ios/project.yml`; the generated project is not committed. Run `task ios:generate` to make it, then open
    `app/ios/Mycroblog.xcodeproj`.
 
-4. Sign in to GitHub for `scripts/kit`:
+4. Install [Android Studio](https://developer.android.com/studio), which puts the Android SDK at
+   `~/Library/Android/sdk`, and in its SDK Manager install "Android SDK Command-line Tools (latest)" from the SDK
+   Tools tab. Set `ANDROID_HOME` to the SDK
+   in your shell's profile (the checks also find it there when it is unset):
+
+   ```bash
+   export ANDROID_HOME="$HOME/Library/Android/sdk"
+   ```
+
+   Then install the SDK packages that the app is built with and the emulator image that the checks launch it on:
+
+   ```bash
+   "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.2" "build-tools;37.0.0" \
+     platform-tools emulator "system-images;android-37.0;google_apis_playstore;arm64-v8a"
+   ```
+
+   The checks create the emulators they need (`drive-phone` and `drive-tablet`) from that image.
+
+5. Sign in to GitHub for `scripts/kit`:
 
    ```bash
    gh auth login
