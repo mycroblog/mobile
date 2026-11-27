@@ -596,8 +596,19 @@ launch_android_on() {
   boot_android "$1" "$profile"
   "$adb" -s "$serial" install -r "$ANDROID_APP/app/build/outputs/apk/debug/app-debug.apk" >/dev/null ||
     fail "could not install the app on $avd: run adb -s $serial install app/and/app/build/outputs/apk/debug/app-debug.apk to see why."
-  "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" | grep -q 'Status: ok' ||
-    fail "the app did not start on $avd: adb -s $serial logcat -b crash says why."
+  # Right after sys.boot_completed the package manager can still refuse to start an activity: wait until it resolves
+  # the app's, and try the start a few times before calling it a failure.
+  local tries=0
+  until "$adb" -s "$serial" shell cmd package resolve-activity --brief -n "$ANDROID_PACKAGE/.MainActivity" 2>/dev/null |
+    grep -q "$ANDROID_PACKAGE/"; do
+    (( ++tries < 30 )) || fail "Android on $avd does not find $ANDROID_PACKAGE/.MainActivity: is the APK installed?"
+    sleep 2
+  done
+  tries=0
+  until "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" 2>/dev/null | grep -q 'Status: ok'; do
+    (( ++tries < 3 )) || fail "the app did not start on $avd: adb -s $serial logcat -b crash says why."
+    sleep 5
+  done
   sleep 3 # a crash right after the first frame
   if [[ -z "$("$adb" -s "$serial" shell pidof "$ANDROID_PACKAGE" | tr -d '\r')" ]] ||
     ! "$adb" -s "$serial" shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' |
