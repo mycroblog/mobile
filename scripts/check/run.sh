@@ -159,17 +159,6 @@ ios_sim_device() {
   printf '%s\n' "$udid"
 }
 
-# Takes the lock that lets one simulator or emulator run at a time on this Mac, waiting while another check holds it.
-take_device_lock() {
-  local waited=0
-  until mkdir "$DEVICE_LOCK" 2>/dev/null; do
-    (( waited == 0 )) && printf 'check: waiting for %s, held by another simulator or emulator run.\n' "$DEVICE_LOCK" >&2
-    (( waited >= 1800 )) && fail "$DEVICE_LOCK has been held for 30 minutes: if no simulator or emulator is running, rmdir $DEVICE_LOCK and check again."
-    sleep 5
-    waited=$((waited + 5))
-  done
-}
-
 IOS_BOOTED=""
 ios_launch_cleanup() {
   [[ -n "$IOS_BOOTED" ]] && xcrun simctl shutdown "$IOS_BOOTED" >/dev/null 2>&1
@@ -257,6 +246,118 @@ check_xcode_version() {
   fi
 }
 
+# The Android app (app/and) and the SDK packages it is built and launched with (CONTRIBUTING.md).
+ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+ANDROID_APP="$ROOT/app/and"
+ANDROID_PACKAGE="dev.mycroblog.app"
+ANDROID_SDK_PACKAGES=("platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "cmdline-tools;latest")
+ANDROID_IMAGE="system-images;android-37.0;google_apis_playstore;arm64-v8a"
+ANDROID_CONSOLE_PORT=5620
+
+need_android_sdk() {
+  local pkg
+  [[ -d "$ANDROID_SDK" ]] ||
+    fail "the Android SDK is not at $ANDROID_SDK: install it, or set ANDROID_HOME to where it is (CONTRIBUTING.md)."
+  for pkg in "$@"; do
+    [[ -d "$ANDROID_SDK/${pkg//;//}" ]] ||
+      fail "the Android SDK package $pkg is not installed: $ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager \"$pkg\" (CONTRIBUTING.md)."
+  done
+}
+
+android_gradle() {
+  (cd "$ANDROID_APP" && ANDROID_HOME="$ANDROID_SDK" ./gradlew --console=plain -q "$@")
+}
+
+check_android_build() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
+  # The build also fails when a module depends on one that ADR-0010 §6 forbids, saying what to do instead.
+  android_gradle assembleDebug ||
+    fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew assembleDebug), then check again.'
+}
+
+EMULATOR_PID=""
+HOLDS_DEVICE_LOCK=""
+
+stop_emulator() {
+  if [[ -n "$EMULATOR_PID" ]] && kill -0 "$EMULATOR_PID" 2>/dev/null; then
+    "$ANDROID_SDK/platform-tools/adb" -s "emulator-$ANDROID_CONSOLE_PORT" emu kill >/dev/null 2>&1 ||
+      kill "$EMULATOR_PID" 2>/dev/null || true
+    wait "$EMULATOR_PID" 2>/dev/null || true
+  fi
+  EMULATOR_PID=""
+}
+
+release_device() {
+  stop_emulator
+  if [[ -n "$HOLDS_DEVICE_LOCK" ]]; then
+    rmdir "$DEVICE_LOCK" 2>/dev/null || true
+    HOLDS_DEVICE_LOCK=""
+  fi
+}
+
+# Takes the lock that lets one simulator or emulator run at a time on this Mac, waiting while another check holds it.
+take_device_lock() {
+  local waited=0
+  until mkdir "$DEVICE_LOCK" 2>/dev/null; do
+    (( waited == 0 )) && printf 'check: waiting for %s, held while another simulator or emulator runs\n' "$DEVICE_LOCK" >&2
+    (( waited >= 1800 )) &&
+      fail "$DEVICE_LOCK was held for 30 minutes: if no simulator or emulator is running, rmdir it and check again."
+    sleep 5
+    waited=$(( waited + 5 ))
+  done
+  HOLDS_DEVICE_LOCK=1
+}
+
+# Boots the AVD drive-<kind> (the one scripts/drive uses), creating it when it is missing, installs and launches the
+# app, confirms that it runs with its activity in front, and stops the emulator.
+launch_android_on() {
+  local profile="$2" avd="drive-$1" serial="emulator-$ANDROID_CONSOLE_PORT" adb deadline log
+  adb="$ANDROID_SDK/platform-tools/adb"
+  if ! "$ANDROID_SDK/emulator/emulator" -list-avds | grep -qx "$avd"; then
+    echo no | "$ANDROID_SDK/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" -k "$ANDROID_IMAGE" -d "$profile" >/dev/null ||
+      fail "could not create the AVD $avd from $ANDROID_IMAGE: create it in Android Studio's Device Manager as a $profile, then check again."
+  fi
+  log="$(mktemp)"
+  "$ANDROID_SDK/emulator/emulator" -avd "$avd" -port "$ANDROID_CONSOLE_PORT" -no-window -no-snapshot-save -no-boot-anim \
+    -no-audio -gpu host >"$log" 2>&1 &
+  EMULATOR_PID=$!
+  "$adb" start-server >/dev/null 2>&1
+  deadline=$(( SECONDS + 300 ))
+  until [[ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; do
+    if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+      tail -n 20 "$log" >&2
+      fail "the emulator of $avd stopped before it booted (above): if $avd runs elsewhere, stop it, then check again."
+    fi
+    (( SECONDS < deadline )) || fail "$avd did not boot in 5 minutes: run it from Android Studio's Device Manager to see why."
+    sleep 2
+  done
+  rm -f "$log"
+  "$adb" -s "$serial" install -r "$ANDROID_APP/app/build/outputs/apk/debug/app-debug.apk" >/dev/null ||
+    fail "could not install the app on $avd: run adb -s $serial install app/and/app/build/outputs/apk/debug/app-debug.apk to see why."
+  "$adb" -s "$serial" shell am start -W -n "$ANDROID_PACKAGE/.MainActivity" | grep -q 'Status: ok' ||
+    fail "the app did not start on $avd: adb -s $serial logcat -b crash says why."
+  sleep 3 # a crash right after the first frame
+  if [[ -z "$("$adb" -s "$serial" shell pidof "$ANDROID_PACKAGE" | tr -d '\r')" ]] ||
+    ! "$adb" -s "$serial" shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' |
+      grep -q "$ANDROID_PACKAGE/.MainActivity"; then
+    "$adb" -s "$serial" logcat -b crash -d >&2 || true
+    fail "the app stopped or left the front on $avd right after it started: fix the crash above, then check again."
+  fi
+  printf 'check: %s runs on %s (%s)\n' "$ANDROID_PACKAGE" "$avd" "$profile"
+  stop_emulator
+}
+
+check_android_launch() {
+  need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
+  android_gradle :app:assembleDebug ||
+    fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebug), then check again.'
+  trap release_device EXIT
+  take_device_lock
+  launch_android_on phone pixel_9
+  launch_android_on tablet pixel_tablet
+  release_device
+}
+
 case "${1:-}" in
   markdown) check_markdown ;;
   fullwidth-parens) check_fullwidth_parens ;;
@@ -270,5 +371,7 @@ case "${1:-}" in
   ios-packages) check_ios_packages ;;
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
+  android-build) check_android_build ;;
+  android-launch) check_android_launch ;;
   *) fail "unknown check ${1:-(none)}: run the checks with task check (task --list shows them)." ;;
 esac

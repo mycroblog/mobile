@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">mycroblog</string>
+
+    <!-- The top-level destinations, as the navigation bar and rail name them (ADR-0002 §6). -->
+    <string name="destination_home">Home</string>
+    <string name="destination_local">Local</string>
+    <string name="destination_federated">Federated</string>
+    <string name="destination_notifications">Notifications</string>
+    <string name="destination_search">Search</string>
+    <string name="destination_messages">Messages</string>
+    <string name="destination_profile">Profile</string>
+    <string name="destination_bookmarks">Bookmarks</string>
+    <string name="destination_settings">Settings</string>
+    <string name="destination_more">More</string>
+</resources>

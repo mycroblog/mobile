@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window's theme until Compose draws; the screens' theme is MycroblogTheme. -->
+    <style name="Theme.Mycroblog" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

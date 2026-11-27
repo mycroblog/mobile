@@ -6,6 +6,7 @@ version: "3"
 output: prefixed
 
 includes:
+  android: ./tasks/android.yml
   docs: ./tasks/docs.yml
   harness: ./tasks/harness.yml
   ios: ./tasks/ios.yml
@@ -20,6 +21,8 @@ tasks:
       - docs:check
       - harness:check
       - ios:check
+      - android:check
     # The launches run one after another, after every area has passed: only one simulator or emulator runs at a time.
     cmds:
       - task: ios:launch
+      - task: android:launch

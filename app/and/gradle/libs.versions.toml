@@ -1,0 +1,69 @@
+[versions]
+# The JDK of .tool-versions, as the Gradle toolchain of every module.
+jdk = "21"
+# Android 12 (ADR-0002 §1).
+minSdk = "31"
+# The latest stable API (ADR-0002 §1): compile against 37.2, target 37.
+compileSdk = "37"
+compileSdkMinor = "2"
+targetSdk = "37"
+buildTools = "37.0.0"
+
+agp = "9.5.3"
+kotlin = "2.4.21"
+ksp = "2.3.14"
+hilt = "2.60.1"
+androidxHilt = "1.4.0"
+composeBom = "2026.11.01"
+activity = "1.13.0"
+navigation3 = "1.2.2"
+lifecycle = "2.11.1"
+work = "2.12.0"
+kotlinxSerialization = "1.13.0"
+materialIcons = "1.7.8"
+
+[libraries]
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-material3-adaptive = { module = "androidx.compose.material3.adaptive:adaptive" }
+androidx-compose-material3-adaptive-navigation-suite = { module = "androidx.compose.material3:material3-adaptive-navigation-suite" }
+androidx-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "materialIcons" }
+androidx-compose-material-icons-extended ={ module = "androidx.compose.material:material-icons-extended", version.ref = "materialIcons" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "androidxHilt" }
+androidx-hilt-lifecycle-viewmodel-compose = { module = "androidx.hilt:hilt-lifecycle-viewmodel-compose", version.ref = "androidxHilt" }
+androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "androidxHilt" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
+
+# The Gradle plugins, for the convention plugins of build-logic.
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+compose-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+hilt-gradlePlugin = { module = "com.google.dagger:hilt-android-gradle-plugin", version.ref = "hilt" }
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+ksp-gradlePlugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+# The convention plugins of build-logic.
+mycroblog-android-application = { id = "mycroblog.android.application" }
+mycroblog-android-library = { id = "mycroblog.android.library" }
+mycroblog-android-compose = { id = "mycroblog.android.compose" }
+mycroblog-feature-api = { id = "mycroblog.feature.api" }
+mycroblog-feature-impl = { id = "mycroblog.feature.impl" }
+mycroblog-hilt = { id = "mycroblog.hilt" }
+mycroblog-jvm-library = { id = "mycroblog.jvm.library" }

@@ -9,6 +9,9 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `background-and-push.md` | WorkManager, foreground services, user-initiated transfers, FCM |
 | `auth-app-links.md` | assetlinks.json, App Links verification and testing, Auth Tab and Custom Tabs for OAuth sign-in |
 | `data-and-di.md` | Room, Paging, Hilt and other DI |
+| `build-and-versions.md` | AGP, Gradle, Kotlin, KSP, Hilt and Jetpack stable versions, compileSdk DSL, built-in Kotlin |
+| `adaptive-and-system-ui.md` | NavigationSuiteScaffold, predictive back, edge-to-edge |
+| `nav-rail-and-bar.md` | NavigationRail layout, NavigationBarItem labels and icons |
 | `ui-automation.md` | UiAutomation windows, Compose accessibility node info, shell commands from an instrumented runner |
 
 ## Rules for a line
