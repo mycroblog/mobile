@@ -1,0 +1,4 @@
+# Generated from shared/api/openapi.yaml by task api:generate (ADR-0003 §2): folded in diffs on GitHub.
+app/ios/Packages/API/Sources/GeneratedAPI/** linguist-generated=true
+app/and/core/api/src/generated/** linguist-generated=true
+shared/api/openapi.yaml linguist-generated=true
