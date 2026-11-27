@@ -103,6 +103,15 @@ final class DriverServer: XCTestCase {
             let b = app.navigationBars.buttons.element(boundBy: 0)
             guard b.waitForExistence(timeout: 2) else { throw Failure(description: "no back button") }
             b.tap()
+        case "drag":
+            // From an element (or a point) to a point, holding first: moves a window's resize grabber on iPadOS.
+            let base = target(cmd).coordinate(withNormalizedOffset: .zero)
+            let from: XCUICoordinate
+            if cmd["id"] != nil || cmd["label"] != nil {
+                from = try element(cmd).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            } else { from = base.withOffset(CGVector(dx: cmd["x"] as! Double, dy: cmd["y"] as! Double)) }
+            let to = base.withOffset(CGVector(dx: cmd["toX"] as! Double, dy: cmd["toY"] as! Double))
+            from.press(forDuration: (cmd["hold"] as? Double) ?? 0.5, thenDragTo: to)
         case "home": XCUIDevice.shared.press(.home)
         case "orientation":
             let map: [String: UIDeviceOrientation] = ["portrait": .portrait, "landscapeLeft": .landscapeLeft,

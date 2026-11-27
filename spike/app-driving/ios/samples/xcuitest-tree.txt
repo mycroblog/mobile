@@ -1,0 +1,63 @@
+Application "Spike3" @0,0,402x874
+  Window @0,0,402x874
+    NavigationBar [Home] @0,62,402x106
+      Button "Plain 0" @20,66,36x36
+      Button "Compose" @346,66,36x36
+      StaticText "Home" @16,119,94x40
+    CollectionView @0,0,402x874
+      Cell @16,168,370x88
+        Button "@user0 · 0m, Home post #0: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,168,370x88
+          StaticText "@user0 · 0m" @36,183,71x14
+          StaticText "Home post #0: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,199,281x42
+          Image [chevron.forward] @356,206,7x12
+      Cell @16,256,370x88
+        Button "@user1 · 1m, Home post #1: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,256,370x88
+          StaticText "@user1 · 1m" @36,271,67x14
+          StaticText "Home post #1: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,287,278x42
+          Image [chevron.forward] @356,294,7x12
+      Cell @16,345,370x88
+        Button "@user2 · 2m, Home post #2: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,345,370x88
+          StaticText "@user2 · 2m" @36,360,71x14
+          StaticText "Home post #2: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,376,280x42
+          Image [chevron.forward] @356,383,7x12
+      Cell @16,434,370x88
+        Button "@user3 · 3m, Home post #3: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,434,370x88
+          StaticText "@user3 · 3m" @36,449,71x14
+          StaticText "Home post #3: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,465,281x42
+          Image [chevron.forward] @356,472,7x12
+      Cell @16,522,370x88
+        Button "@user4 · 4m, Home post #4: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,522,370x88
+          StaticText "@user4 · 4m" @36,537,72x14
+          StaticText "Home post #4: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,554,281x42
+          Image [chevron.forward] @356,561,7x12
+      Cell @16,611,370x88
+        Button "@user5 · 5m, Home post #5: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,611,370x88
+          StaticText "@user5 · 5m" @36,626,71x14
+          StaticText "Home post #5: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,642,280x42
+          Image [chevron.forward] @356,649,7x12
+      Cell @16,700,370x88
+        Button "@user6 · 6m, Home post #6: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,700,370x88
+          StaticText "@user6 · 6m" @36,715,72x14
+          StaticText "Home post #6: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,731,281x42
+          Image [chevron.forward] @356,738,7x12
+      Cell @16,788,370x88
+        Button "@user7 · 7m, Home post #7: lorem ipsum dolor sit amet, consectetur adipiscing elit." @16,788,370x88
+          StaticText "@user7 · 7m" @36,803,70x14
+          StaticText "Home post #7: lorem ipsum dolor sit amet, consectetur adipiscing elit." @36,820,279x42
+          Image [chevron.forward] @356,827,7x12
+      Other "Vertical scroll bar, 18 pages" ="0%" @369,116,30x675
+      Other "Vertical scroll bar, 18 pages" ="0%" @369,116,30x675
+    Toolbar "Toolbar" [Toolbar] @0,0,402x874
+    Toolbar "Toolbar" [Toolbar] @0,0,402x874
+    TabBar "Tab Bar" @0,791,402x83
+      Button "Home" [house] selected @25,795,79x54
+        Image "home" [house.fill] @48,801,33x28
+      Button "Local" [person.2] @84,795,79x54
+        Image "Two people, filled" [person.2.fill] @106,802,36x26
+      Button "Federated" [globe] @144,795,89x54
+        Image "Globe, filled" [globe.fill] @175,801,27x27
+      Button "Notifications" [bell] @213,795,103x54
+        Image "notifications" [bell.fill] @252,801,26x28
+      Button "More" @297,795,79x54
+        Image "More" [ellipsis] @324,810,25x8
+    StaticText "tabs h:C v:R 402x778 scene:04FE tab:home sel:- in:-" [debugOverlay] @27,732,347x13
