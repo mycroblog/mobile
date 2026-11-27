@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+// The app-driving tool of the agents (ADR-0011 §3): one step per call on the iOS Simulator or the Android Emulator.
+// Run `scripts/drive --help` for the steps.
+import { main } from '../tools/drive/drive.mjs';
+
+process.exitCode = await main(process.argv.slice(2));
