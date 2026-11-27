@@ -127,6 +127,20 @@ struct ServerLookupModelTests {
         #expect(Self.describe(model.state) == "idle")
     }
 
+    /// The scene restores the screen with only its typed address: nothing is fetched until "Look up".
+    @Test func aRestoredScreenKeepsTheAddressAndLooksItUpAgain() async {
+        let lookup = StubLookup(answers: [.success(Self.instance)])
+        let model = ServerLookupModel(lookup: lookup, address: "example.social")
+
+        #expect(model.address == "example.social")
+        #expect(Self.describe(model.state) == "idle")
+        #expect(lookup.addresses.isEmpty, "restoring the screen fetched")
+
+        await model.lookUp()
+
+        #expect(Self.describe(model.state).hasPrefix("loaded example.social"))
+    }
+
     @Test func aNewLookupFetchesTheNewAddress() async {
         let lookup = StubLookup(answers: [.success(Self.instance), .success(Self.instance)])
         let model = Self.model(lookup, address: "example.social")

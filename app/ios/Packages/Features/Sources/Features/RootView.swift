@@ -10,6 +10,12 @@ import SwiftUI
 public struct RootView: View {
     @SceneStorage("RootView.selection") private var selection: RootSelection = .destination(.home)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    // The server screen belongs to the scene, above the tab container, so that rebuilding the destinations when the
+    // width changes does not close it; whether it is open and the address typed in it are restored with the scene
+    // (ADR-0009 §3). A result is not restored: it is looked up again with "Look up".
+    @State private var serverLookup: ServerLookupModel?
+    @SceneStorage("RootView.isLookingUpAServer") private var isLookingUpAServer = false
+    @SceneStorage("RootView.serverAddress") private var serverAddress = ""
 
     private let instanceLookup: any InstanceLookup
 
@@ -29,7 +35,7 @@ public struct RootView: View {
             ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
-                        DestinationScreen(destination: destination, instanceLookup: instanceLookup)
+                        DestinationScreen(destination: destination, addAccount: lookUpAServer)
                     }
                 } label: {
                     TabLabel(title: destination.title, systemImage: destination.systemImage)
@@ -40,7 +46,7 @@ public struct RootView: View {
                     NavigationStack(path: overflowPath) {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
-                                DestinationScreen(destination: destination, instanceLookup: instanceLookup)
+                                DestinationScreen(destination: destination, addAccount: lookUpAServer)
                             }
                     }
                 } label: {
@@ -50,6 +56,28 @@ public struct RootView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .sidebarOnTheInnerDisplay()
+        .sheet(item: $serverLookup) { model in
+            NavigationStack {
+                ServerLookupScreen(model: model)
+            }
+        }
+        .onChange(of: serverLookup?.address) { _, address in
+            serverAddress = address ?? ""
+        }
+        .onChange(of: serverLookup == nil) { _, isClosed in
+            isLookingUpAServer = !isClosed
+        }
+        .onAppear(perform: restoreServerLookup)
+    }
+
+    private func lookUpAServer() {
+        serverLookup = ServerLookupModel(lookup: instanceLookup)
+    }
+
+    /// Opens the server screen again, with the address that was typed, when the scene had it open.
+    private func restoreServerLookup() {
+        guard isLookingUpAServer, serverLookup == nil else { return }
+        serverLookup = ServerLookupModel(lookup: instanceLookup, address: serverAddress)
     }
 
     /// The selected tab: in compact width an overflow destination is shown in the overflow list's tab; in regular
@@ -108,11 +136,11 @@ private struct OverflowList: View {
 /// The screen of a top-level destination: its feature, or its placeholder until the feature lands.
 private struct DestinationScreen: View {
     let destination: TopLevelDestination
-    let instanceLookup: any InstanceLookup
+    let addAccount: () -> Void
 
     var body: some View {
         switch destination {
-        case .settings: SettingsScreen(instanceLookup: instanceLookup)
+        case .settings: SettingsScreen(addAccount: addAccount)
         default: DestinationPlaceholder(destination: destination)
         }
     }

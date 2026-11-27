@@ -20,6 +20,7 @@ public struct ServerLookupScreen: View {
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityLabel(Text("Server address"))
                     .submitLabel(.go)
                     .onSubmit(lookUp)
                 Button("Look up", action: lookUp)
@@ -102,7 +103,8 @@ private struct ServerLookupResult: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Could not reach \(host). \(error.reason)"))
                 Button("Try again", action: tryAgain)
             }
         }

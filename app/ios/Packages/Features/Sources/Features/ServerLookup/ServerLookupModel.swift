@@ -4,7 +4,7 @@ import Observation
 
 /// The state of the screen that looks up a server by its address and shows its instance.
 @Observable
-public final class ServerLookupModel {
+public final class ServerLookupModel: Identifiable {
     /// What the screen shows below the address.
     public enum State: Hashable, Sendable {
         /// Nothing has been looked up for the address.

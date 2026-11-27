@@ -1,26 +1,16 @@
-import AppData
 import SwiftUI
 
-/// The Settings destination. "Add an account" opens the screen that looks up a server, in a sheet.
+/// The Settings destination. "Add an account" opens the screen that looks up a server; the root of the scene
+/// presents it, so that it survives the destinations being rebuilt when the width changes.
 struct SettingsScreen: View {
-    let instanceLookup: any InstanceLookup
-    @State private var serverLookup: ServerLookupModel?
+    let addAccount: () -> Void
 
     var body: some View {
         List {
             Section {
-                Button("Add an account") {
-                    serverLookup = ServerLookupModel(lookup: instanceLookup)
-                }
+                Button("Add an account", action: addAccount)
             }
         }
         .navigationTitle(TopLevelDestination.settings.title)
-        .sheet(item: $serverLookup) { model in
-            NavigationStack {
-                ServerLookupScreen(model: model)
-            }
-        }
     }
 }
-
-extension ServerLookupModel: Identifiable {}
