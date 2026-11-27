@@ -802,7 +802,7 @@ check_android_launch() {
 
 # The test layers of the Android app that run on the JVM (ADR-0006 §1): the unit tests, the screenshot tests and the
 # integration tests, the last against the local my at MY_URL (task android:test starts it with task my:up).
-ANDROID_SCREENSHOT_MODULES=("core/designsystem")
+ANDROID_SCREENSHOT_MODULES=("core/designsystem" "feature/settings/impl")
 
 # Prints the path of each image a reviewer opens: every reference, and each new image and comparison of a failure.
 print_android_screenshots() {
@@ -819,7 +819,7 @@ print_android_screenshots() {
 
 check_android_test() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local url="${MY_URL:-}" module tasks=(:core:api:test :core:api:integrationTest)
+  local url="${MY_URL:-}" module tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
   [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
   for module in "${ANDROID_SCREENSHOT_MODULES[@]}"; do
     tasks+=(":${module//\//:}:verifyRoborazziDebug")
