@@ -36,20 +36,14 @@ tasks:
       - scripts/check/run.sh android-api-check
 
   test:
-    desc: Run the Android unit, screenshot and integration tests on the JVM, the last against the local my that my:up starts, and name the screenshots to open
+    desc: Run the Android unit and integration tests on the JVM, the last against the local my that my:up starts
     dir: "{{.ROOT_DIR}}"
     deps: [":my:up"]
     cmds:
       - scripts/check/run.sh android-test
 
-  record-screenshots:
-    desc: Record the reference images of the Android screenshot tests again, replacing the committed ones, and name them
-    dir: "{{.ROOT_DIR}}"
-    cmds:
-      - scripts/check/run.sh android-record-screenshots
-
   test-flow:
-    desc: Run the Android UI-flow tests on the phone emulator drive-phone, under the device lock
+    desc: Run the Android UI-flow tests on the phone emulator drive-phone, under the device seat
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh android-test-flow

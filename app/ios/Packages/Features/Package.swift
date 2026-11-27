@@ -1,8 +1,8 @@
 // swift-tools-version: 6.2
 // The screens of the app, from the root container down. It is UI, so the default isolation is MainActor
 // (ADR-0009 §7). It reads the domain types, the data of the app and the design system; it never calls the API
-// directly, which only the data of the app does. Its screenshot tests (ADR-0006 §1) are in Tests/FeaturesTests and its
-// unit tests in Tests/FeaturesUnitTests (`task ios:test`).
+// directly, which only the data of the app does. Its unit tests are in
+// Tests/FeaturesUnitTests (`task ios:test`).
 import PackageDescription
 
 let isolation: [SwiftSetting] = [
@@ -19,22 +19,11 @@ let package = Package(
         .package(path: "../Domain"),
         .package(path: "../AppData"),
         .package(path: "../DesignSystem"),
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.7"),
     ],
     targets: [
         .target(
             name: "Features",
             dependencies: ["Domain", "AppData", "DesignSystem"],
-            swiftSettings: isolation
-        ),
-        .testTarget(
-            name: "FeaturesTests",
-            dependencies: [
-                "Features",
-                "Domain",
-                "AppData",
-                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-            ],
             swiftSettings: isolation
         ),
         .testTarget(

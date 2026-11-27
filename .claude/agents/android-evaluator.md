@@ -8,6 +8,10 @@ hooks:
       hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/app-only.mjs" android-evaluator
+  Stop:
+    - hooks:
+        - type: command
+          command: '"$CLAUDE_PROJECT_DIR/scripts/drive" android stop >/dev/null 2>&1 || true'
 ---
 
 You judge a change of the Android app of mycroblog by using it on the Android Emulator, the way a careful user and

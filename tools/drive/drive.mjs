@@ -119,6 +119,11 @@ export function defaultDeps(env = process.env) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, data);
     },
+    // The seats of this Mac (scripts/check/slot.sh, ADR-0012 §2); it says on stderr when it waits for one.
+    slot(args) {
+      return execFileSync(path.join(ROOT, 'scripts/check/slot.sh'), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+    },
+    pid: process.pid,
     now: () => new Date(),
     out: (s) => process.stdout.write(s),
     err: (s) => process.stderr.write(s),
@@ -161,6 +166,8 @@ export async function main(argv, deps = defaultDeps()) {
   const ctx = platform.context(deps);
   try {
     const reply = await platform.steps[step.name](ctx, positional, flags);
+    // A step marks the session's device seat as used, so it is not taken over while the session is in use.
+    if (step.name !== 'start' && step.name !== 'stop') deps.slot(['touch', 'device']);
     deps.out(reply?.tree ? render(deps, platformName, step.name, reply) : `${reply?.message ?? 'done'}\n`);
     return 0;
   } catch (e) {

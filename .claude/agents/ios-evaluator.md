@@ -8,6 +8,10 @@ hooks:
       hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/app-only.mjs" ios-evaluator
+  Stop:
+    - hooks:
+        - type: command
+          command: '"$CLAUDE_PROJECT_DIR/scripts/drive" ios stop >/dev/null 2>&1 || true'
 ---
 
 You judge a change of the iOS app of mycroblog by using it on the iOS Simulator, the way Apple's reviewers and a

@@ -1,3 +1,3 @@
 - Confirm new tests ran in `app/ios/build/test/<layer>.log` (one line per test case); `task ios:test` prints only a summary per layer - a passing summary does not show which tests ran (#10, 2026-11-27)
 - A stub of a `Sendable` protocol in a MainActor test target: `@MainActor final class` with `@MainActor func` on the async witness; without it the witness is nonisolated and the stored state fails to compile (#11, 2026-11-27)
-- Unit tests of a package other than API go in a target of their own, listed in `IOS_UNIT_TESTS` of scripts/check/run.sh; FeaturesTests holds only screenshots (#11, 2026-11-27)
+- Unit tests of a package other than API go in a target of their own, listed in `IOS_UNIT_TESTS` of scripts/check/run.sh (#11, 2026-11-27)
