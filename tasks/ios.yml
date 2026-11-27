@@ -61,3 +61,26 @@ tasks:
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh ios-launch
+
+  test:
+    desc: Run the unit, screenshot and integration tests on one iPhone simulator, against a local my (ADR-0006 §1), naming the images to open
+    platforms: [darwin]
+    deps: [":my:up"]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-test
+
+  record-screenshots:
+    desc: Record every reference image of the screenshot tests again, on the simulator the tests use; commit what changes
+    platforms: [darwin]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-record-screenshots
+
+  test-flow:
+    desc: Run the UI-flow tests (XCUITest) on one iPhone simulator
+    platforms: [darwin]
+    deps: [generate]
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - scripts/check/run.sh ios-test-flow

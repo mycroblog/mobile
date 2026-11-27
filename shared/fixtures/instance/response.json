@@ -49,6 +49,7 @@
     "visibilities": []
   },
   "translation": {
+    "browser": false,
     "providers": []
   },
   "single_user": false,

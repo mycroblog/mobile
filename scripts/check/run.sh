@@ -243,6 +243,121 @@ check_ios_launch() {
   done
 }
 
+# The tests of the iOS app (ADR-0006 §1), on one simulator: the reference images of the screenshot tests are shot on
+# it, so another device type or OS renders them differently.
+IOS_TEST_DEVICE="mycroblog-check-phone|iPhone 17"
+IOS_TEST_RESULTS="$IOS_BUILD/test"
+IOS_SNAPSHOTS="$IOS/Packages/Features/Tests/FeaturesTests/__Snapshots__"
+IOS_TEST_UDID=""
+
+# Takes the device lock and boots the test simulator; it is shut down and the lock released when the check exits.
+ios_test_boot() {
+  need jq "install jq with brew install jq"
+  local name="${IOS_TEST_DEVICE%%|*}" type="${IOS_TEST_DEVICE#*|}"
+  take_device_lock
+  trap ios_launch_cleanup EXIT
+  IOS_TEST_UDID="$(ios_sim_device "$name" "$type")"
+  IOS_BOOTED="$IOS_TEST_UDID"
+  xcrun simctl bootstatus "$IOS_TEST_UDID" -b >/dev/null || fail "the simulator $name did not boot: open Simulator and boot $name to see why."
+}
+
+# Runs `xcodebuild test` for the layer $1 on the booted test simulator, with the rest as its arguments, into the result
+# bundle $IOS_TEST_RESULTS/$1.xcresult; prints how long it took, and the failed tests and their issues when it fails.
+# Variables named TEST_RUNNER_<NAME> in its environment reach the tests as <NAME>.
+ios_test_layer() {
+  local layer="$1" log result start status=0
+  shift
+  mkdir -p "$IOS_TEST_RESULTS"
+  log="$IOS_TEST_RESULTS/$layer.log"
+  result="$IOS_TEST_RESULTS/$layer.xcresult"
+  rm -rf "$result"
+  start=$SECONDS
+  # One simulator, the booted one: no clones for parallel testing.
+  xcodebuild test -destination "id=$IOS_TEST_UDID" -parallel-testing-enabled NO -disable-concurrent-destination-testing \
+    -resultBundlePath "$result" "$@" >"$log" 2>&1 || status=$?
+  if (( status != 0 )); then
+    # The failed tests with their issues: an issue of Swift Testing goes on in the lines that start with ↳ or spaces.
+    awk '/^✘|error:|Test Case .* failed|BUILD FAILED/ { print; more = 1; next }
+      more && /^(↳|  )/ { print; next } { more = 0 }' "$log" >&2
+    grep -qE '^✘|error:|Test Case .* failed|BUILD FAILED' "$log" || tail -n 30 "$log" >&2
+    printf 'ios: the %s tests failed in %s s; the log is %s and the result bundle %s (open it in Xcode).\n' \
+      "$layer" "$(( SECONDS - start ))" "${log#"$ROOT"/}" "${result#"$ROOT"/}" >&2
+    return "$status"
+  fi
+  printf 'ios: the %s tests passed in %s s.\n' "$layer" "$(( SECONDS - start ))"
+}
+
+# The unit tests: the API package's tests of the generated types against shared/fixtures.
+ios_test_unit() {
+  (cd "$IOS/Packages/API" && ios_test_layer unit -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APITests) ||
+    fail "the unit tests failed: fix the code, or the fixture under shared/fixtures when what it pins has changed in my (above)."
+}
+
+# The screenshot tests of the Features package. The record mode $1 is one of swift-snapshot-testing's: missing (a
+# missing reference is recorded and fails), all (every reference is recorded again), failed or never.
+ios_test_screenshot() {
+  local record="${1:-missing}" artifacts="$IOS_TEST_RESULTS/screenshots" status=0 image
+  rm -rf "$artifacts"
+  mkdir -p "$artifacts"
+  (cd "$IOS/Packages/Features" && TEST_RUNNER_SNAPSHOT_ARTIFACTS="$artifacts" TEST_RUNNER_SNAPSHOT_TESTING_RECORD="$record" \
+    ios_test_layer screenshot -scheme Features -derivedDataPath "$IOS_BUILD/packages/Features") || status=$?
+  printf 'ios: the reference images:\n'
+  find "$IOS_SNAPSHOTS" -name '*.png' 2>/dev/null | sort | sed 's/^/  /'
+  (( status == 0 )) && return 0
+  # Recording fails each test it records; it succeeded when every issue is a recording.
+  if [[ "$record" == all ]]; then
+    local issues recorded
+    issues="$(grep -cE '^✘ Test .* recorded an issue' "$IOS_TEST_RESULTS/screenshot.log" || true)"
+    recorded="$(grep -cE '^↳ (Record mode is on|No reference was found)' "$IOS_TEST_RESULTS/screenshot.log" || true)"
+    (( issues > 0 && issues == recorded )) && return 0
+    fail "the screenshot tests failed for another reason than recording (above): fix it, then record again."
+  fi
+  # The new image is in $artifacts; the difference is only an attachment of the result bundle.
+  xcrun xcresulttool export attachments --path "$IOS_TEST_RESULTS/screenshot.xcresult" \
+    --output-path "$artifacts/attachments" >/dev/null 2>&1 || true
+  printf 'ios: the new images and their differences, to open next to the reference:\n' >&2
+  while IFS= read -r image; do printf '  %s\n' "$image" >&2; done < <(
+    find "$artifacts" -path "$artifacts/attachments" -prune -o -name '*.png' -print | sort
+    [[ -f "$artifacts/attachments/manifest.json" ]] &&
+      jq -r --arg dir "$artifacts/attachments" '.[] | .testIdentifier as $test | .attachments[]
+        | select(.suggestedHumanReadableName | startswith("difference"))
+        | "\($dir)/\(.exportedFileName) (the difference of \($test))"' "$artifacts/attachments/manifest.json"
+  )
+  fail "the screenshot tests failed: compare the images above; if the new rendering is right, record it with task ios:record-screenshots and commit the reference."
+}
+
+# The integration tests: the API package's client against the local my of scripts/my.sh, which the task starts.
+ios_test_integration() {
+  local url
+  url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task ios:test does)."
+  (cd "$IOS/Packages/API" && TEST_RUNNER_MY_URL="$url" \
+    ios_test_layer integration -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APIIntegrationTests) ||
+    fail "the integration tests against my at $url failed: read the issues above; scripts/my.sh says where my's log is (.tmp/my.log)."
+}
+
+# The unit, screenshot and integration tests, one simulator under the device lock.
+check_ios_test() {
+  ios_test_boot
+  ios_test_unit
+  ios_test_screenshot
+  ios_test_integration
+}
+
+# Records every reference image of the screenshot tests again; commit what changes.
+check_ios_record_screenshots() {
+  ios_test_boot
+  ios_test_screenshot all
+  printf 'ios: recorded the reference images above: look at each, then commit them.\n'
+}
+
+# The UI-flow tests: XCUITest drives the app, built for testing, on the test simulator.
+check_ios_test_flow() {
+  [[ -d "$IOS/Mycroblog.xcodeproj" ]] || check_ios_generate
+  ios_test_boot
+  ios_test_layer flow -project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app" ||
+    fail "the UI-flow tests failed: the result bundle above holds a screen recording and the screens of each step."
+}
+
 # The version a tool of .tool-versions reports, in the form .tool-versions pins it, or nothing when it does not run.
 installed_version() {
   case "$1" in
@@ -501,6 +616,9 @@ case "${1:-}" in
   ios-packages) check_ios_packages ;;
   ios-build) check_ios_build ;;
   ios-launch) check_ios_launch ;;
+  ios-test) check_ios_test ;;
+  ios-record-screenshots) check_ios_record_screenshots ;;
+  ios-test-flow) check_ios_test_flow ;;
   ios-api-generate) check_ios_api_generate "${2:-}" ;;
   ios-api-check) check_ios_api ;;
   android-build) check_android_build ;;
