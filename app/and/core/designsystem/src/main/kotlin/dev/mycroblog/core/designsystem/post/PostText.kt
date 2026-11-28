@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
@@ -148,7 +149,8 @@ internal fun RunsText(
     Text(
         text = text,
         modifier = modifier,
-        style = style,
+        // A name or a warning takes the direction of its own words.
+        style = style.copy(textDirection = TextDirection.Content),
         color = color,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,

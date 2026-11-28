@@ -17,7 +17,11 @@ fun EntryProviderScope<NavKey>.settingsEntries(
     readServer: (ServerAddress) -> Unit,
 ) {
     entry<SettingsKey> { key ->
-        SettingsScreen(onAddAccount = { navigate(ChooseServerKey) }, onUp = navigateUp(key))
+        SettingsRoute(
+            onChangeServer = { navigate(ChooseServerKey) },
+            onAddAccount = { navigate(ChooseServerKey) },
+            onUp = navigateUp(key),
+        )
     }
     entry<ChooseServerKey> { key ->
         ChooseServerRoute(onUp = navigateUp(key), onRead = readServer)

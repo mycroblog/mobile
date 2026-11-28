@@ -20,10 +20,13 @@ import kotlinx.coroutines.launch
  */
 @HiltViewModel
 class RootViewModel @Inject constructor(private val readers: ReaderRepository, sync: TimelineSync) : ViewModel() {
-    /** The timelines offered, none before a server is chosen. */
-    val offered: StateFlow<Set<PublicTimeline>> = readers.reader
+    /**
+     * The timelines offered, none before a server is chosen; null until the remembered reader is read, so that a
+     * destination restored after the process ended is not left for being unknown yet.
+     */
+    val offered: StateFlow<Set<PublicTimeline>?> = readers.reader
         .map { it?.timelines.orEmpty().toSet() }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
         viewModelScope.launch {

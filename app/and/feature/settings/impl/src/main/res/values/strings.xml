@@ -2,6 +2,10 @@
 <resources>
     <string name="settings_title">Settings</string>
     <string name="settings_add_account">Add an account</string>
+    <string name="settings_server_section">Server</string>
+    <string name="settings_change_server">Change server</string>
+    <string name="settings_choose_server">Choose a server</string>
+    <string name="settings_no_server">No server chosen</string>
 
     <string name="choose_server_title">Choose a server</string>
     <string name="choose_server_address_label">Server address</string>

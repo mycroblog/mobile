@@ -74,15 +74,17 @@ import dev.mycroblog.feature.timeline.impl.timelineEntries
 fun MycroblogRoot(viewModel: RootViewModel = hiltViewModel()) {
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
     val offered by viewModel.offered.collectAsStateWithLifecycle()
+    val known = offered.orEmpty()
     val hidden = buildSet {
-        if (PublicTimeline.LOCAL !in offered) add(TopLevelDestination.LOCAL)
-        if (PublicTimeline.FEDERATED !in offered) add(TopLevelDestination.FEDERATED)
+        if (PublicTimeline.LOCAL !in known) add(TopLevelDestination.LOCAL)
+        if (PublicTimeline.FEDERATED !in known) add(TopLevelDestination.FEDERATED)
     }
     val state = rememberRootNavigationState(
         barLayout = !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
         hidden = hidden,
     )
-    LaunchedEffect(hidden) { state.leaveHidden() }
+    // Only once the offered timelines are known: a destination restored after the process ended stays selected.
+    LaunchedEffect(offered != null, hidden) { if (offered != null) state.leaveHidden() }
 
     val entryProvider = entryProvider<NavKey> {
         timelineEntries(state::navigateUp, state::navigate)

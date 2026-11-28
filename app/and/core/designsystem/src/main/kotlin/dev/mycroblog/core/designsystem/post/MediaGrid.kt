@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -22,6 +24,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,8 +66,12 @@ internal fun MediaGrid(media: List<Media>, sensitive: Boolean, covered: Boolean,
             }
         }
         if (covered) {
-            FilledTonalButton(onClick = onToggle, modifier = Modifier.align(Alignment.Center)) {
-                Text(stringResource(R.string.post_show_media))
+            val show = stringResource(R.string.post_show_media)
+            FilledTonalButton(
+                onClick = onToggle,
+                modifier = Modifier.align(Alignment.Center).buttonSemantics(show, onToggle),
+            ) {
+                Text(show)
             }
         } else if (sensitive) {
             val hide = stringResource(R.string.post_hide_media)
@@ -82,6 +92,7 @@ private const val MAX_RATIO = 2f
 @Composable
 private fun MediaPreview(media: Media, covered: Boolean, modifier: Modifier) {
     val label = media.label()
+    val kind = media.kindLabel()
     val blurhash = rememberBlurhashPainter(media.blurhash)
     Box(
         modifier = modifier
@@ -99,13 +110,18 @@ private fun MediaPreview(media: Media, covered: Boolean, modifier: Modifier) {
             }
 
             media.preview != null -> {
+                var failed by remember(media.preview) { mutableStateOf(false) }
                 AsyncImage(
                     model = media.preview,
                     contentDescription = null,
                     placeholder = blurhash,
+                    error = blurhash,
+                    onError = { failed = true },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
+                // A preview that cannot load shows its BlurHash, or a placeholder that names its kind.
+                if (failed && blurhash == null) MediaPlaceholder(media.type, kind)
                 if (media.type == MediaType.VIDEO || media.type == MediaType.GIFV) {
                     Icon(
                         Icons.Filled.PlayCircle,
@@ -116,14 +132,28 @@ private fun MediaPreview(media: Media, covered: Boolean, modifier: Modifier) {
                 }
             }
 
-            else -> EmptyBox(Modifier.fillMaxSize()) {
-                Icon(
-                    if (media.type == MediaType.AUDIO) Icons.Outlined.Audiotrack else Icons.Outlined.Description,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            else -> MediaPlaceholder(media.type, kind)
+        }
+    }
+}
+
+/** The box of a medium with no picture to show: an icon and the name of its [kind]. */
+@Composable
+private fun MediaPlaceholder(type: MediaType, kind: String) {
+    EmptyBox(Modifier.fillMaxSize()) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(
+                when (type) {
+                    MediaType.AUDIO -> Icons.Outlined.Audiotrack
+                    MediaType.IMAGE, MediaType.GIFV -> Icons.Outlined.Photo
+                    MediaType.VIDEO -> Icons.Outlined.Videocam
+                    MediaType.UNKNOWN -> Icons.Outlined.Description
+                },
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(kind, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -131,14 +161,18 @@ private fun MediaPreview(media: Media, covered: Boolean, modifier: Modifier) {
 /** What accessibility services say of a medium: its kind, and its description when it has one. */
 @Composable
 private fun Media.label(): String {
-    val kind = stringResource(
-        when (type) {
-            MediaType.IMAGE -> R.string.post_media_image
-            MediaType.GIFV -> R.string.post_media_gifv
-            MediaType.VIDEO -> R.string.post_media_video
-            MediaType.AUDIO -> R.string.post_media_audio
-            MediaType.UNKNOWN -> R.string.post_media_unknown
-        },
-    )
+    val kind = kindLabel()
     return description?.let { stringResource(R.string.post_media_described, kind, it) } ?: kind
 }
+
+/** The name of a medium's kind. */
+@Composable
+private fun Media.kindLabel(): String = stringResource(
+    when (type) {
+        MediaType.IMAGE -> R.string.post_media_image
+        MediaType.GIFV -> R.string.post_media_gifv
+        MediaType.VIDEO -> R.string.post_media_video
+        MediaType.AUDIO -> R.string.post_media_audio
+        MediaType.UNKNOWN -> R.string.post_media_unknown
+    },
+)

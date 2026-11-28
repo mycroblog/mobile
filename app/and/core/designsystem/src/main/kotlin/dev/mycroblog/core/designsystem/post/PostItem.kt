@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.mycroblog.core.designsystem.R
@@ -152,7 +153,8 @@ private fun Header(post: TimelinePost) {
             author.handle?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.bodySmall,
+                    // A handle reads left to right in every language.
+                    style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
@@ -218,8 +220,9 @@ private fun ContentWarning(warning: List<ContentRun>, post: TimelinePost, open: 
             )
             RunsText(runs = warning, emojis = post.post.emojis, style = MaterialTheme.typography.bodyLarge)
         }
-        OutlinedButton(onClick = onToggle) {
-            Text(stringResource(if (open) R.string.post_show_less else R.string.post_show_more))
+        val toggle = stringResource(if (open) R.string.post_show_less else R.string.post_show_more)
+        OutlinedButton(onClick = onToggle, modifier = Modifier.buttonSemantics(toggle, onToggle)) {
+            Text(toggle)
         }
     }
 }
@@ -235,8 +238,10 @@ private fun UnshownContent(url: String?) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (url != null) {
-            TextButton(onClick = { uriHandler.openUri(url) }) {
-                Text(stringResource(R.string.post_open_on_server))
+            val open = stringResource(R.string.post_open_on_server)
+            val onOpen = { uriHandler.openUri(url) }
+            TextButton(onClick = onOpen, modifier = Modifier.buttonSemantics(open, onOpen)) {
+                Text(open)
             }
         }
     }
@@ -249,7 +254,8 @@ private fun Content(post: TimelinePost) {
     // Its own element for accessibility services, which offer its links.
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        // Each paragraph takes the direction of its own words, whatever the layout's direction.
+        style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Content),
         inlineContent = rememberEmojiContent(post.post.emojis),
     )
 }

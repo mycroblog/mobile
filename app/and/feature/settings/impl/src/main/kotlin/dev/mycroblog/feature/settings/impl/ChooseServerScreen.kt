@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -120,12 +121,17 @@ fun ChooseServerScreen(
     onRead: () -> Unit = {},
     onUp: (() -> Unit)? = null,
 ) {
-    // A lookup that starts, or an address found invalid, ends the field's focus, which hides the keyboard, so that the
-    // result or the error shows.
+    // A lookup that starts, its result, or an address found invalid ends the field's focus and hides the keyboard, so
+    // that the result or the error shows. The keyboard is hidden by itself too: after the permission dialog, the window
+    // can bring it back without a focused field.
     val focusManager = LocalFocusManager.current
-    val answered = uiState.lookup is ServerLookupState.Loading || uiState.lookup == ServerLookupState.InvalidAddress
-    LaunchedEffect(answered) {
-        if (answered) focusManager.clearFocus()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val lookup = uiState.lookup
+    LaunchedEffect(lookup) {
+        if (lookup != ServerLookupState.Idle) {
+            focusManager.clearFocus()
+            keyboard?.hide()
+        }
     }
     // On a short window, such as a phone in landscape with the keyboard open, the top app bar scrolls with the form and
     // "Look up" sits beside the field, so that the field and the action fit above the keyboard.
