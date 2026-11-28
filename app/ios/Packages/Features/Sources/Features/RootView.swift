@@ -1,4 +1,5 @@
 import AppData
+import Domain
 import SwiftUI
 
 /// The root of a scene: the top-level destinations in the OS tab container, which shows a tab bar in compact width
@@ -16,18 +17,30 @@ public struct RootView: View {
     @State private var serverLookup: ServerLookupModel?
     @SceneStorage("RootView.isLookingUpAServer") private var isLookingUpAServer = false
     @SceneStorage("RootView.serverAddress") private var serverAddress = ""
+    /// The page of a tapped link, open in the in-app browser.
+    @State private var browsed: BrowsedURL?
 
-    private let instanceLookup: any InstanceLookup
+    private let session: ReaderSession
 
-    /// The root of a scene, whose screens look up servers with `instanceLookup`.
-    public init(instanceLookup: any InstanceLookup) {
-        self.instanceLookup = instanceLookup
+    /// The root of a scene, which reads the server of `session` and looks up servers with its lookup.
+    public init(session: ReaderSession) {
+        self.session = session
     }
+
+    private var instanceLookup: any InstanceLookup { session.instanceLookup }
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
 
+    /// The destinations shown: all but the server-provided timelines the chosen server does not offer (ADR-0002 §6).
+    private var availableDestinations: [TopLevelDestination] {
+        TopLevelDestination.allCases.filter { destination in
+            destination.publicTimeline.map { session.publicTimelines.contains($0) } ?? true
+        }
+    }
+
     private var tabDestinations: [TopLevelDestination] {
-        isCompact ? RootSelection.compactTabBarDestinations : TopLevelDestination.allCases
+        let available = availableDestinations
+        return isCompact ? RootSelection.compactTabBarDestinations.filter { available.contains($0) } : available
     }
 
     public var body: some View {
@@ -35,7 +48,7 @@ public struct RootView: View {
             ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
-                        DestinationScreen(destination: destination, addAccount: lookUpAServer)
+                        DestinationScreen(destination: destination, session: session, chooseServer: lookUpAServer)
                     }
                 } label: {
                     TabLabel(title: destination.title, systemImage: destination.systemImage)
@@ -46,7 +59,8 @@ public struct RootView: View {
                     NavigationStack(path: overflowPath) {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
-                                DestinationScreen(destination: destination, addAccount: lookUpAServer)
+                                DestinationScreen(
+                                    destination: destination, session: session, chooseServer: lookUpAServer)
                             }
                     }
                 } label: {
@@ -56,11 +70,16 @@ public struct RootView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .sidebarOnTheInnerDisplay()
+        .opensLinksInAppBrowser($browsed)
         .sheet(item: $serverLookup) { model in
             NavigationStack {
-                ServerLookupScreen(model: model)
+                ServerLookupScreen(model: model) { address, instance in
+                    session.choose(address, instance: instance)
+                    serverLookup = nil
+                }
             }
         }
+        .task { await session.refreshInstance() }
         .onChange(of: serverLookup?.address) { _, address in
             serverAddress = address ?? ""
         }
@@ -83,7 +102,12 @@ public struct RootView: View {
     /// The selected tab, which RootNavigation maps to and from what the root shows.
     private var tabSelection: Binding<RootSelection> {
         Binding {
-            navigation.tab(isCompact: isCompact)
+            let tab = navigation.tab(isCompact: isCompact)
+            // A destination the server stopped offering shows Home instead.
+            if case .destination(let destination) = tab, !availableDestinations.contains(destination) {
+                return .destination(.home)
+            }
+            return tab
         } set: { tab in
             navigation.select(tab: tab)
         }
@@ -129,12 +153,51 @@ private struct OverflowList: View {
 /// The screen of a top-level destination: its feature, or its placeholder until the feature lands.
 private struct DestinationScreen: View {
     let destination: TopLevelDestination
-    let addAccount: () -> Void
+    let session: ReaderSession
+    let chooseServer: () -> Void
 
     var body: some View {
         switch destination {
-        case .settings: SettingsScreen(addAccount: addAccount)
-        default: DestinationPlaceholder(destination: destination)
+        case .home:
+            HomeScreen(server: session.server, chooseServer: chooseServer)
+        case .localTimeline, .federatedTimeline:
+            if let timeline = destination.publicTimeline, let model = session.model(of: timeline) {
+                TimelineScreen(model: model, title: destination.title)
+                    .id(model.context)
+            } else {
+                DestinationPlaceholder(destination: destination)
+            }
+        case .settings:
+            SettingsScreen(server: session.server, chooseServer: chooseServer)
+        default:
+            DestinationPlaceholder(destination: destination)
+        }
+    }
+}
+
+/// Home. Before a server is chosen, it offers to choose one; its timeline needs signing in.
+private struct HomeScreen: View {
+    let server: ChosenServer?
+    let chooseServer: () -> Void
+
+    var body: some View {
+        if server == nil {
+            ContentUnavailableView {
+                Label {
+                    Text(TopLevelDestination.home.title)
+                } icon: {
+                    Image(systemName: TopLevelDestination.home.systemImage)
+                        .accessibilityHidden(true)
+                }
+            } description: {
+                Text("Choose a server to read its public timelines.")
+            } actions: {
+                Button("Choose a Server", action: chooseServer)
+                    .buttonStyle(.borderedProminent)
+            }
+            .navigationTitle(TopLevelDestination.home.title)
+        } else {
+            DestinationPlaceholder(destination: .home)
         }
     }
 }

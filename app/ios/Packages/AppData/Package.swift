@@ -1,6 +1,6 @@
 // swift-tools-version: 6.2
 // The data of the app: the store and the sync (ADR-0008). Only the app uses it, never an extension (ADR-0008 §5,
-// ADR-0009 §7). It is not UI, so the default isolation is nonisolated.
+// ADR-0009 §7). It is not UI, so the default isolation is nonisolated. The store is SQLite through GRDB (ADR-0008 §7).
 import PackageDescription
 
 let package = Package(
@@ -10,11 +10,12 @@ let package = Package(
     dependencies: [
         .package(path: "../Domain"),
         .package(path: "../API"),
+        .package(url: "https://github.com/groue/GRDB.swift", exact: "7.12.0"),
     ],
     targets: [
         .target(
             name: "AppData",
-            dependencies: ["Domain", "API"],
+            dependencies: ["Domain", "API", .product(name: "GRDB", package: "GRDB.swift")],
             swiftSettings: [
                 .defaultIsolation(nil),
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault"),

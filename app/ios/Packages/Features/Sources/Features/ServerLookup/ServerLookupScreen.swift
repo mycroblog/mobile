@@ -10,8 +10,12 @@ public struct ServerLookupScreen: View {
     /// Whether the address field has the keyboard; a lookup ends it, so that what it shows is not under the keyboard.
     @FocusState private var isAddressFocused: Bool
 
-    public init(model: ServerLookupModel) {
+    private let choose: ((ServerAddress, Instance) -> Void)?
+
+    /// The screen of `model`; with `choose`, a server that was looked up can be chosen to read.
+    public init(model: ServerLookupModel, choose: ((ServerAddress, Instance) -> Void)? = nil) {
         self.model = model
+        self.choose = choose
     }
 
     public var body: some View {
@@ -37,6 +41,13 @@ public struct ServerLookupScreen: View {
                 }
             }
             ServerLookupResult(state: model.state, tryAgain: tryAgain)
+            if let choose, let server = model.loadedServer {
+                Section {
+                    Button("Read This Server") { choose(server.address, server.instance) }
+                } footer: {
+                    Text("Read the public timelines this server offers, without signing in.")
+                }
+            }
         }
         .navigationTitle("Choose a server")
         .navigationBarTitleDisplayMode(.inline)
