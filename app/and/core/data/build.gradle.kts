@@ -2,6 +2,12 @@
 plugins {
     alias(libs.plugins.mycroblog.android.library)
     alias(libs.plugins.mycroblog.hilt)
+    alias(libs.plugins.androidx.room3)
+}
+
+// The schema of each version of the store, committed, so that a change to it shows in review.
+room3 {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
@@ -10,10 +16,17 @@ dependencies {
     // The engine of the HttpClient on Android. The repositories take the engine from Hilt (HttpEngineModule), so a
     // test can give another one.
     implementation(libs.ktor.client.okhttp)
+    // The store (ADR-0008 §7), with the SQLite it bundles, and the preferences of the reader.
+    implementation(libs.androidx.room3.runtime)
+    implementation(libs.androidx.sqlite.bundled)
+    ksp(libs.androidx.room3.compiler)
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
+    // The SQLite of the JVM, so that a test builds the store in memory (Room.inMemoryDatabaseBuilder).
+    testImplementation(libs.androidx.sqlite.bundled.jvm)
 }
 
 // The unit tests (ADR-0006 §1) read the shared fixtures (ADR-0002 §2) from shared/fixtures of the repository, never a

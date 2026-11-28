@@ -13,4 +13,5 @@
     <string name="choose_server_no_answer">The server did not answer.</string>
     <string name="choose_server_not_mycroblog">This is not a mycroblog server.</string>
     <string name="choose_server_try_again">Try again</string>
+    <string name="choose_server_read">Read this server</string>
 </resources>

@@ -37,8 +37,8 @@ import dev.mycroblog.feature.timeline.api.LocalTimelineKey
  * The top-level destinations of ADR-0002 §6, in its order. The navigation rail shows them all; the navigation bar,
  * which holds at most five items (ADR-0010 §4), shows those [inBar] and a "More" item that opens the rest.
  *
- * The local and federated timelines are shown while the app knows no server; once it does, only the timelines the
- * server provides are shown (ADR-0002 §6).
+ * The local and federated timelines are shown only when the reader's server offers them to everyone (ADR-0002 §6);
+ * before a server is chosen, neither is.
  */
 enum class TopLevelDestination(
     val key: NavKey,

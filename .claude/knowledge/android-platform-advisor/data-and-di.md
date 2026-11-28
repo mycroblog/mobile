@@ -1,4 +1,5 @@
 # Data and DI
+
 - Room 3.0.3 stable 2026-09-09 (3.1.0-alpha04 2026-11-18): `androidx.room3:room3-runtime` + `ksp("androidx.room3:room3-compiler")`, optional Gradle plugin `androidx.room3` (needs `room3 { schemaDirectory(...) }`); KSP and Kotlin only, DAO functions suspend or return Flow, a SQLiteDriver is required; Room 2 in maintenance [https://developer.android.com/jetpack/androidx/releases/room3, https://android-developers.googleblog.com/2026/03/room-30-modernizing-room.html, checked 2026-11-28]
 - Room 3 Paging: `androidx.room3:room3-paging` + `@DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)` on the DAO returns PagingSource (LIMIT/OFFSET); Flow queries need no extra artifact; `InvalidationTracker.createFlow(vararg tables)` re-runs custom reads [https://developer.android.com/jetpack/androidx/releases/room3, checked 2026-11-28]
 - Paging RemoteMediator loads only at the list edges; REFRESH replaces the cached query -> no notion of gaps in the middle [https://developer.android.com/topic/libraries/architecture/paging/v3-network-db, checked 2026-11-27]

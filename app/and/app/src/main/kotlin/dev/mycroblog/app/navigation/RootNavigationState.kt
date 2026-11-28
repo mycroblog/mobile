@@ -31,6 +31,7 @@ class RootNavigationState(
     showingMore: MutableState<Boolean>,
     moreDestination: MutableState<TopLevelDestination?>,
     barLayout: State<Boolean>,
+    hidden: State<Set<TopLevelDestination>>,
 ) {
     /** The top-level destination shown, or the one under the "More" list when [showingMore]. */
     var selected by selected
@@ -47,12 +48,19 @@ class RootNavigationState(
     /** Whether the navigation is the bar (compact width) rather than the rail (ADR-0010 §4). */
     val barLayout by barLayout
 
+    /** The destinations not offered now, such as a timeline the server does not provide (ADR-0002 §6). */
+    val hidden by hidden
+
+    private val shown: List<TopLevelDestination>
+        get() = TopLevelDestination.entries.filterNot { it in hidden }
+
     /** The destinations the navigation shows as items: in the bar those that fit, in the rail all of them. */
     val items: List<TopLevelDestination>
-        get() = if (barLayout) TopLevelDestination.entries.filter { it.inBar } else TopLevelDestination.entries
+        get() = if (barLayout) shown.filter { it.inBar } else shown
 
     /** The destinations the "More" list opens. */
-    val moreItems: List<TopLevelDestination> = TopLevelDestination.entries.filterNot { it.inBar }
+    val moreItems: List<TopLevelDestination>
+        get() = shown.filterNot { it.inBar }
 
     /** Whether the bar's "More" item is the selected one. */
     val moreSelected: Boolean
@@ -98,6 +106,20 @@ class RootNavigationState(
         stacks.getValue(selected).add(key)
     }
 
+    /** Shows Home at its root, as after the reader chose a server. */
+    fun showHome() {
+        val stack = stacks.getValue(selected)
+        while (stack.size > 1) stack.removeAt(stack.lastIndex)
+        stacks.getValue(TopLevelDestination.HOME).let { home -> while (home.size > 1) home.removeAt(home.lastIndex) }
+        select(TopLevelDestination.HOME)
+    }
+
+    /** Leaves a destination that is no longer offered for Home. */
+    fun leaveHidden() {
+        if (selected in hidden) select(TopLevelDestination.HOME)
+        if (moreDestination in hidden) moreDestination = null
+    }
+
     /** One step back, as the back gesture or button asks. */
     fun back() {
         val stack = stacks.getValue(selected)
@@ -116,15 +138,21 @@ class RootNavigationState(
 
 /**
  * The root's navigation state, saved across configuration changes and process death as keys, for the navigation bar's
- * layout when [barLayout] and the rail's otherwise.
+ * layout when [barLayout] and the rail's otherwise, without the [hidden] destinations.
  */
 @Composable
-fun rememberRootNavigationState(barLayout: Boolean): RootNavigationState {
+fun rememberRootNavigationState(
+    barLayout: Boolean,
+    hidden: Set<TopLevelDestination> = emptySet(),
+): RootNavigationState {
     val stacks = TopLevelDestination.entries.associateWith { rememberNavBackStack(it.key) }
     val moreStack = rememberNavBackStack(MoreKey)
     val selected = rememberSaveable { mutableStateOf(TopLevelDestination.HOME) }
     val showingMore = rememberSaveable { mutableStateOf(false) }
     val moreDestination = rememberSaveable { mutableStateOf<TopLevelDestination?>(null) }
     val bar = rememberUpdatedState(barLayout)
-    return remember { RootNavigationState(stacks, moreStack, selected, showingMore, moreDestination, bar) }
+    val hiddenState = rememberUpdatedState(hidden)
+    return remember {
+        RootNavigationState(stacks, moreStack, selected, showingMore, moreDestination, bar, hiddenState)
+    }
 }

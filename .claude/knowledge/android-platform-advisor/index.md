@@ -22,6 +22,8 @@ How Android and Jetpack behave for this app. Read this file, then the files of t
 | `text-and-media.md` | HTML to AnnotatedString, links and TalkBack, inline emoji, text premeasure |
 | `lists-and-prefs.md` | LazyColumn keys and position saving, PullToRefreshBox, DataStore |
 | `ime-and-focus.md` | windowSoftInputMode and IME insets, extract UI, hiding the keyboard |
+| `room3-and-sqlite.md` | Room 3 plugin, builders, SQLite drivers, bundled on JVM, write transactions |
+| `images-links-motion.md` | Coil 3 artifacts and GIF, Custom Tabs and package visibility, Remove animations |
 
 ## Rules for a line
 

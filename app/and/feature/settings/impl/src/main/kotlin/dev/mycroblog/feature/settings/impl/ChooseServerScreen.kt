@@ -62,14 +62,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.mycroblog.core.designsystem.NavigateUpButton
 import dev.mycroblog.core.model.InstanceLookupFailure
+import dev.mycroblog.core.model.ServerAddress
 
 /**
  * The server screen with its ViewModel: the address field's text is saved with the screen and sent to the ViewModel.
  * Before a lookup of an address of the local network, it asks for [ACCESS_LOCAL_NETWORK] when the app needs it, and
- * looks up whatever the answer.
+ * looks up whatever the answer. [onRead] reads the server that was found without an account.
  */
 @Composable
-internal fun ChooseServerRoute(onUp: (() -> Unit)?, viewModel: ChooseServerViewModel = hiltViewModel()) {
+internal fun ChooseServerRoute(
+    onUp: (() -> Unit)?,
+    onRead: (ServerAddress) -> Unit,
+    viewModel: ChooseServerViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val address = rememberTextFieldState()
     LaunchedEffect(address) {
@@ -94,13 +99,14 @@ internal fun ChooseServerRoute(onUp: (() -> Unit)?, viewModel: ChooseServerViewM
         uiState = uiState,
         onLookUp = { withLocalNetwork(viewModel::lookUp) },
         onRetry = { withLocalNetwork(viewModel::retry) },
+        onRead = { ServerAddress.parse(uiState.address)?.let(onRead) },
         onUp = onUp,
     )
 }
 
 /**
- * The server screen: a field for the address of a server, "Look up", and the instance it found or why it found none.
- * It holds no state: [address] is the field's text and [uiState] the rest.
+ * The server screen: a field for the address of a server, "Look up", and the instance it found, with [onRead] to read
+ * it without an account, or why it found none. It holds no state: [address] is the field's text and [uiState] the rest.
  */
 @Composable
 fun ChooseServerScreen(
@@ -109,6 +115,7 @@ fun ChooseServerScreen(
     onLookUp: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onRead: () -> Unit = {},
     onUp: (() -> Unit)? = null,
 ) {
     // A lookup that starts, or an address found invalid, ends the field's focus, which hides the keyboard, so that the
@@ -154,7 +161,7 @@ fun ChooseServerScreen(
                     LookUpButton(uiState, onLookUp, Modifier.align(Alignment.End))
                 }
                 Box(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
-                    LookupResult(uiState.lookup, onRetry)
+                    LookupResult(uiState.lookup, onRetry, onRead)
                 }
             }
         }
@@ -214,7 +221,7 @@ private fun AddressField(
 }
 
 @Composable
-private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit) {
+private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit, onRead: () -> Unit) {
     when (lookup) {
         ServerLookupState.Idle, ServerLookupState.InvalidAddress -> Unit
 
@@ -241,6 +248,13 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val read = stringResource(R.string.choose_server_read)
+            Button(
+                onClick = onRead,
+                modifier = Modifier.buttonSemantics(read, enabled = true, onClick = onRead),
+            ) {
+                Text(read)
+            }
         }
 
         is ServerLookupState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
