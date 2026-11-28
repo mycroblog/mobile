@@ -44,7 +44,8 @@ class TimelineSync @Inject constructor(
 
     /**
      * Reads the newest page and follows its cursor until it meets the stored order, up to [MAX_PAGES] pages; the new
-     * posts go on top of the stored ones. If it does not meet them, the stored order is replaced (ADR-0008 §3).
+     * posts go on top of the stored ones. If it does not meet them, the stored order is replaced (ADR-0008 §3). With
+     * nothing stored, it reads the newest page only.
      */
     suspend fun refresh(context: ReaderContext, timeline: PublicTimeline): TimelineLoad = writing.withLock {
         guarded { refreshLocked(context, timeline) }
@@ -52,6 +53,9 @@ class TimelineSync @Inject constructor(
 
     private suspend fun refreshLocked(context: ReaderContext, timeline: PublicTimeline): TimelineLoad {
         val stored = dao.ids(context.origin, timeline.apiName)
+        // With nothing stored there is nothing to meet: the newest page is the timeline, and older ones load as the
+        // reader scrolls, so that opening a timeline costs one request of the server's rate limit.
+        if (stored.isEmpty()) return loadNewestPage(context, timeline)
         val storedIds = stored.toHashSet()
         val statuses = mutableListOf<Status>()
         var cursor: String? = null
@@ -87,6 +91,15 @@ class TimelineSync @Inject constructor(
             else -> newIds.distinct() to cursor
         }
         write(context, timeline, statuses, ids, next)
+        return TimelineLoad.Loaded
+    }
+
+    private suspend fun loadNewestPage(context: ReaderContext, timeline: PublicTimeline): TimelineLoad {
+        val page = when (val result = fetch(context, timeline, cursor = null)) {
+            is Fetched.Page -> result.page
+            is Fetched.Failure -> return fail(context, timeline, result.failure)
+        }
+        write(context, timeline, page.items, page.items.map { it.id.toString() }.distinct(), page.nextCursor)
         return TimelineLoad.Loaded
     }
 
