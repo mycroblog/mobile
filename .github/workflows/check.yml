@@ -78,6 +78,7 @@ jobs:
       - uses: ./mobile/.github/actions/setup
         with:
           tools: task xcodegen
+          my: "true"
       - name: task ios:test-flow
         working-directory: mobile
         run: task ios:test-flow

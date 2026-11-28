@@ -99,9 +99,9 @@ tasks:
       - scripts/check/run.sh ios-test
 
   test-flow:
-    desc: Run the UI-flow tests (XCUITest) on one iPhone simulator
+    desc: Run the UI-flow tests (XCUITest) on one iPhone simulator, against a local my (ADR-0006 §1)
     platforms: [darwin]
-    deps: [generate]
+    deps: [generate, ":my:up"]
     dir: "{{.ROOT_DIR}}"
     cmds:
       - scripts/check/run.sh ios-test-flow

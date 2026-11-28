@@ -1,3 +1,7 @@
 - Confirm new tests ran in `app/ios/build/test/<layer>.log` (one line per test case); `task ios:test` prints only a summary per layer - a passing summary does not show which tests ran (#10, 2026-11-27)
 - A stub of a `Sendable` protocol in a MainActor test target: `@MainActor final class` with `@MainActor func` on the async witness; without it the witness is nonisolated and the stored state fails to compile (#11, 2026-11-27)
 - Unit tests of a package other than API go in a target of their own, listed in `IOS_UNIT_TESTS` of scripts/check/run.sh (#11, 2026-11-27)
+- `XCTAssert*` arguments are autoclosures that cannot `await`: bind `try await` results to a `let` first (#42, 2026-11-28)
+- Before writing an XCUITest, read the labels with `scripts/drive ios install` of the app that `ios:check` built (app/ios/build/app/Build/Products/Debug-iphonesimulator/Mycroblog.app); `task ios:test-flow` is run once (#42, 2026-11-28)
+- Do not assume how many pages a sync reads on an empty store: give a stub server more posts than `maxPagesToMeet` pages hold when a test needs an older page (#42, 2026-11-28)
+- A relaunch in XCUITest: `app.terminate()` 0.5 s after pressing home lost the selected tab that a system kill keeps; wait for `.runningBackgroundSuspended` first (#42, 2026-11-28)
