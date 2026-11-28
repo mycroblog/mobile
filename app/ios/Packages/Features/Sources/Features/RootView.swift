@@ -248,7 +248,8 @@ private struct HomeScreen: View {
     }
 }
 
-/// The empty screen of a destination until its feature lands. Its symbol is decorative, so VoiceOver skips it.
+/// The screen of a destination that needs signing in, for a reader who has not signed in: it says the destination
+/// comes with signing in, which comes later. Its symbol is decorative, so VoiceOver skips it.
 struct DestinationPlaceholder: View {
     let destination: TopLevelDestination
 
@@ -260,6 +261,8 @@ struct DestinationPlaceholder: View {
                 Image(systemName: destination.systemImage)
                     .accessibilityHidden(true)
             }
+        } description: {
+            Text("This comes with signing in. Signing in comes later.")
         }
         .navigationTitle(destination.title)
     }

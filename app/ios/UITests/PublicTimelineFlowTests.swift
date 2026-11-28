@@ -93,6 +93,9 @@ final class PublicTimelineFlowTests: XCTestCase {
             return
         }
         app.tabBars.buttons["More"].tap()
+        // A relaunch restores the destination last opened from More: go back to its list.
+        let back = app.navigationBars.buttons["BackButton"]
+        if back.waitForExistence(timeout: 2) { back.tap() }
         let row = app.buttons[name]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "neither the tab bar nor More has \(name)")
         row.tap()
@@ -116,8 +119,13 @@ final class PublicTimelineFlowTests: XCTestCase {
         read.tap()
 
         openDestination("Local", in: app)
+        // The timeline comes back where the reader of an earlier run left it: go up to the newest post.
+        let newestPost = element(containing: Self.start(of: newest.text), in: app)
+        for _ in 0..<10 where !newestPost.waitForExistence(timeout: 3) {
+            app.swipeDown()
+        }
         XCTAssertTrue(
-            element(containing: Self.start(of: newest.text), in: app).waitForExistence(timeout: 15),
+            newestPost.waitForExistence(timeout: 15),
             "the Local timeline does not show its newest post \"\(newest.text)\""
         )
 
@@ -128,6 +136,13 @@ final class PublicTimelineFlowTests: XCTestCase {
             let post = app.otherElements.matching(NSPredicate(format: "label CONTAINS %@", warned.spoiler)).firstMatch
             XCTAssertTrue(scroll(to: post, in: app), "the post warning \"\(warned.spoiler)\" is missing")
             let content = element(containing: Self.start(of: warned.text), in: app)
+            // The reader's choice is kept across launches (ADR-0008 §2): a warning an earlier run left open is closed
+            // first.
+            let leftOpen = post.buttons["Hide Content"]
+            if leftOpen.exists {
+                leftOpen.tap()
+                XCTAssertTrue(content.waitForNonExistence(timeout: 5), "an open content warning did not close")
+            }
             XCTAssertFalse(content.exists, "the content under the warning shows before it is opened")
 
             let show = post.buttons["Show Content"]

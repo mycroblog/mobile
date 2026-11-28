@@ -33,9 +33,9 @@ public final class TimelineModel {
     /// Whether the store has been read, so that the saved position can be restored.
     public private(set) var hasReadStore = false
     /// The posts whose content warning the reader opened.
-    public var openedContentWarnings: Set<String> = []
+    public private(set) var openedContentWarnings: Set<String> = []
     /// The posts whose hidden media the reader showed.
-    public var shownMedia: Set<String> = []
+    public private(set) var shownMedia: Set<String> = []
 
     @ObservationIgnored private let sync: TimelineSync
     @ObservationIgnored private let onUnavailable: () -> Void
@@ -61,6 +61,9 @@ public final class TimelineModel {
     public func run() async {
         if !hasReadStore {
             savedPosition = try? await sync.store.readingPosition(of: timeline, in: context)
+            let states = (try? await sync.store.displayStates(in: context)) ?? [:]
+            openedContentWarnings = Set(states.filter { $0.value.isContentOpen }.keys)
+            shownMedia = Set(states.filter { $0.value.isMediaShown }.keys)
         }
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.observeStore() }
@@ -140,6 +143,26 @@ public final class TimelineModel {
     private static func retryDate(for error: TimelineLoadError) -> Date? {
         guard case .rateLimited(let seconds?) = error, seconds > 0 else { return nil }
         return Date.now.addingTimeInterval(TimeInterval(seconds))
+    }
+
+    /// Opens the content warning of the entry `id`, or closes it again; the choice is kept across launches.
+    public func toggleContentWarning(of id: String) {
+        if openedContentWarnings.remove(id) == nil { openedContentWarnings.insert(id) }
+        saveDisplayState(of: id)
+    }
+
+    /// Shows the hidden media of the entry `id`, or hides them again; the choice is kept across launches.
+    public func toggleMedia(of id: String) {
+        if shownMedia.remove(id) == nil { shownMedia.insert(id) }
+        saveDisplayState(of: id)
+    }
+
+    private func saveDisplayState(of id: String) {
+        let state = PostDisplayState(
+            isContentOpen: openedContentWarnings.contains(id), isMediaShown: shownMedia.contains(id))
+        Task { [sync, context] in
+            try? await sync.saveDisplayState(state, of: id, in: context)
+        }
     }
 
     /// Saves `position` as where the reader is, or forgets it with nil.

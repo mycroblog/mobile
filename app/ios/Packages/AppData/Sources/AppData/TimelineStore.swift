@@ -17,6 +17,18 @@ public struct ReadingPosition: Sendable, Hashable, Codable {
     }
 }
 
+/// What the reader opened of a post: its content warning, and its hidden media. It is screen state, kept apart from
+/// the post's record (ADR-0008 §2), so that reading the post again does not close them.
+public struct PostDisplayState: Sendable, Hashable {
+    public var isContentOpen: Bool
+    public var isMediaShown: Bool
+
+    public init(isContentOpen: Bool = false, isMediaShown: Bool = false) {
+        self.isContentOpen = isContentOpen
+        self.isMediaShown = isMediaShown
+    }
+}
+
 /// What the store holds of one timeline.
 public struct TimelineSnapshot: Sendable, Hashable {
     /// The items, newest first.
@@ -89,6 +101,15 @@ public final class TimelineStore: Sendable {
                     CREATE TABLE readingPosition (
                         context TEXT NOT NULL, timeline TEXT NOT NULL, anchorID TEXT NOT NULL, offset REAL NOT NULL,
                         PRIMARY KEY (context, timeline));
+                    """)
+        }
+        migrator.registerMigration("v2: post display") { db in
+            try db.execute(
+                sql: """
+                    CREATE TABLE postDisplay (
+                        context TEXT NOT NULL, postID TEXT NOT NULL,
+                        isContentOpen INTEGER NOT NULL, isMediaShown INTEGER NOT NULL,
+                        PRIMARY KEY (context, postID));
                     """)
         }
         return migrator
@@ -201,7 +222,41 @@ public final class TimelineStore: Sendable {
         Array(repeating: "?", count: count).joined(separator: ",")
     }
 
+    /// What the reader opened or showed of the posts of `context`, by the ID of the timeline entry; a post that is
+    /// missing has its content warning closed and its hidden media hidden.
+    public func displayStates(in context: ReaderContext) async throws -> [String: PostDisplayState] {
+        try await writer.read { db in
+            var states: [String: PostDisplayState] = [:]
+            for row in try Row.fetchAll(
+                db,
+                sql: "SELECT postID, isContentOpen, isMediaShown FROM postDisplay WHERE context = ?",
+                arguments: [context.key])
+            {
+                let postID: String = row["postID"]
+                states[postID] = PostDisplayState(
+                    isContentOpen: row["isContentOpen"], isMediaShown: row["isMediaShown"])
+            }
+            return states
+        }
+    }
+
     // MARK: Writing (TimelineSync only)
+
+    func saveDisplayState(_ state: PostDisplayState, of postID: String, in context: ReaderContext) async throws {
+        try await writer.write { db in
+            if state == PostDisplayState() {
+                try db.execute(
+                    sql: "DELETE FROM postDisplay WHERE context = ? AND postID = ?", arguments: [context.key, postID])
+            } else {
+                try db.execute(
+                    sql: """
+                        INSERT OR REPLACE INTO postDisplay (context, postID, isContentOpen, isMediaShown)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                    arguments: [context.key, postID, state.isContentOpen, state.isMediaShown])
+            }
+        }
+    }
 
     /// The state of paging of `timeline`: the cursor of the page older than its last entry, and whether the server
     /// has none.
@@ -307,6 +362,11 @@ public final class TimelineStore: Sendable {
                 sql: """
                     DELETE FROM account WHERE NOT EXISTS (
                         SELECT 1 FROM post p WHERE p.context = account.context AND p.accountID = account.id)
+                    """)
+            try db.execute(
+                sql: """
+                    DELETE FROM postDisplay WHERE NOT EXISTS (
+                        SELECT 1 FROM post p WHERE p.context = postDisplay.context AND p.id = postDisplay.postID)
                     """)
         }
     }

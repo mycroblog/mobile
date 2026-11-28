@@ -68,8 +68,8 @@ struct TimelineScreen: View {
                         item: item,
                         isContentOpen: model.openedContentWarnings.contains(item.id),
                         isMediaShown: model.shownMedia.contains(item.id),
-                        toggleContent: { toggleContent(of: item.id) },
-                        toggleMedia: { toggleMedia(of: item.id) }
+                        toggleContent: { model.toggleContentWarning(of: item.id) },
+                        toggleMedia: { model.toggleMedia(of: item.id) }
                     )
                     .padding(.horizontal)
                     .frame(maxWidth: readableWidth)
@@ -79,8 +79,6 @@ struct TimelineScreen: View {
                     } action: { minY in
                         geometry.rowTops[item.id] = minY
                     }
-                    // A row the lazy stack let go of has no position any more.
-                    .onDisappear { geometry.rowTops[item.id] = nil }
                     Divider()
                 }
                 if model.hasOlder {
@@ -97,6 +95,13 @@ struct TimelineScreen: View {
             .scrollTargetLayout()
         }
         .scrollPosition($position)
+        // The inset of the top under the bars, from the first layout on: a scroll geometry reports only changes, so
+        // before the reader scrolls it would not be known when the position is restored.
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.safeAreaInsets.top
+        } action: { insetTop in
+            geometry.insetTop = insetTop
+        }
         .onScrollGeometryChange(for: ScrollOffset.self) { scroll in
             ScrollOffset(offset: scroll.contentOffset.y + scroll.contentInsets.top, insetTop: scroll.contentInsets.top)
         } action: { _, scroll in
@@ -145,22 +150,6 @@ struct TimelineScreen: View {
         }
     }
 
-    private func toggleContent(of id: String) {
-        if model.openedContentWarnings.contains(id) {
-            model.openedContentWarnings.remove(id)
-        } else {
-            model.openedContentWarnings.insert(id)
-        }
-    }
-
-    private func toggleMedia(of id: String) {
-        if model.shownMedia.contains(id) {
-            model.shownMedia.remove(id)
-        } else {
-            model.shownMedia.insert(id)
-        }
-    }
-
     private func retry() {
         Task { await model.retry() }
     }
@@ -196,6 +185,14 @@ struct TimelineScreen: View {
     private func keepReadingPosition() {
         guard didRestore, let anchor = geometry.anchor, model.items.contains(where: { $0.id == anchor.anchorID })
         else { return }
+        if let top = geometry.rowTops[anchor.anchorID] {
+            // The post is laid out: leave it where it is, or move by exactly what it is off by.
+            let correction = (top - geometry.insetTop) + anchor.offset
+            if abs(correction) >= 1 {
+                position.scrollTo(y: max(0, geometry.contentOffset + correction))
+            }
+            return
+        }
         scroll(to: anchor)
     }
 

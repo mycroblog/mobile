@@ -103,6 +103,11 @@ public final class TimelineSync: Sendable {
             in: context)
     }
 
+    /// Saves what the reader opened of the post `postID`: its content warning and its hidden media.
+    public func saveDisplayState(_ state: PostDisplayState, of postID: String, in context: ReaderContext) async throws {
+        try await store.saveDisplayState(state, of: postID, in: context)
+    }
+
     /// Saves where the reader is in `timeline`, or forgets it with nil.
     public func saveReadingPosition(
         _ position: ReadingPosition?,
