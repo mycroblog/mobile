@@ -14,7 +14,7 @@ sealed interface TimelineFailure {
     /** No answer came: the host is unreachable, the connection failed, or it timed out. */
     data object NoAnswer : TimelineFailure
 
-    /** The server answered with something this app cannot read. */
+    /** Something this app cannot handle: an answer of the server it cannot read, or a store that failed. */
     data object Unexpected : TimelineFailure
 
     /** The server answered with an RFC 9457 problem, whose title says why. */

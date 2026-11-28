@@ -6,10 +6,10 @@ import androidx.room3.Database
 import androidx.room3.Entity
 import androidx.room3.Index
 import androidx.room3.Insert
+import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.RoomDatabase
 import androidx.room3.Transaction
-import androidx.room3.Upsert
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -100,13 +100,15 @@ abstract class TimelineDao {
     @Query("SELECT * FROM timelines WHERE context = :context AND timeline = :timeline")
     abstract fun observeTimeline(context: String, timeline: String): Flow<TimelineEntity?>
 
-    @Upsert
+    // A record replaces the one of its key whole (ADR-0008 §2). INSERT OR REPLACE, rather than @Upsert, which tells a
+    // conflict from another failure by the message of the driver's exception, and that message can be missing.
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertPosts(posts: List<PostEntity>)
 
-    @Upsert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertAccounts(accounts: List<AccountEntity>)
 
-    @Upsert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertTimeline(timeline: TimelineEntity)
 
     @Insert

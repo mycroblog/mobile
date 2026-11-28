@@ -11,7 +11,7 @@
     <string name="timeline_empty">No posts yet.</string>
     <string name="timeline_end">You have reached the oldest post.</string>
     <string name="timeline_no_answer">The server did not answer. Check your connection.</string>
-    <string name="timeline_unexpected">The server sent an answer this app cannot read.</string>
+    <string name="timeline_unexpected">Something went wrong while loading this timeline.</string>
     <string name="timeline_rate_limited">The server asked to wait before loading more. Try again in a moment.</string>
     <string name="timeline_not_offered">This server no longer offers this timeline.</string>
 </resources>

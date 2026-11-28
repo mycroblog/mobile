@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,6 +47,10 @@ class TimelineSync @Inject constructor(
      * posts go on top of the stored ones. If it does not meet them, the stored order is replaced (ADR-0008 §3).
      */
     suspend fun refresh(context: ReaderContext, timeline: PublicTimeline): TimelineLoad = writing.withLock {
+        guarded { refreshLocked(context, timeline) }
+    }
+
+    private suspend fun refreshLocked(context: ReaderContext, timeline: PublicTimeline): TimelineLoad {
         val stored = dao.ids(context.origin, timeline.apiName)
         val storedIds = stored.toHashSet()
         val statuses = mutableListOf<Status>()
@@ -56,7 +61,7 @@ class TimelineSync @Inject constructor(
         while (pages < MAX_PAGES) {
             val page = when (val result = fetch(context, timeline, cursor)) {
                 is Fetched.Page -> result.page
-                is Fetched.Failure -> return@withLock fail(context, timeline, result.failure)
+                is Fetched.Failure -> return fail(context, timeline, result.failure)
             }
             pages++
             val meets = page.items.indexOfFirst { it.id.toString() in storedIds }
@@ -82,29 +87,47 @@ class TimelineSync @Inject constructor(
             else -> newIds.distinct() to cursor
         }
         write(context, timeline, statuses, ids, next)
-        TimelineLoad.Loaded
+        return TimelineLoad.Loaded
     }
 
     /** Appends the next older page to the stored order; at the end of the timeline it does nothing. */
-    suspend fun loadOlder(context: ReaderContext, timeline: PublicTimeline): TimelineLoad {
-        val state = dao.timeline(context.origin, timeline.apiName)
-        if (state == null || !state.loaded) return refresh(context, timeline)
-        return writing.withLock {
-            val cursor = dao.timeline(context.origin, timeline.apiName)?.nextCursor
-                ?: return@withLock TimelineLoad.Loaded
-            val page = when (val result = fetch(context, timeline, cursor)) {
-                is Fetched.Page -> result.page
-                is Fetched.Failure -> return@withLock fail(context, timeline, result.failure)
-            }
-            val stored = dao.ids(context.origin, timeline.apiName)
-            val ids = (stored + page.items.map { it.id.toString() }).distinct()
-            write(context, timeline, page.items, ids, page.nextCursor)
-            TimelineLoad.Loaded
-        }
+    suspend fun loadOlder(context: ReaderContext, timeline: PublicTimeline): TimelineLoad = writing.withLock {
+        guarded { loadOlderLocked(context, timeline) }
     }
 
-    /** Cuts every timeline to its newest [MAX_ENTRIES] posts and drops the records none holds, as at launch. */
-    suspend fun prune() = writing.withLock { dao.prune(MAX_ENTRIES) }
+    private suspend fun loadOlderLocked(context: ReaderContext, timeline: PublicTimeline): TimelineLoad {
+        val state = dao.timeline(context.origin, timeline.apiName)
+        if (state == null || !state.loaded) return refreshLocked(context, timeline)
+        val cursor = state.nextCursor ?: return TimelineLoad.Loaded
+        val page = when (val result = fetch(context, timeline, cursor)) {
+            is Fetched.Page -> result.page
+            is Fetched.Failure -> return fail(context, timeline, result.failure)
+        }
+        val stored = dao.ids(context.origin, timeline.apiName)
+        val ids = (stored + page.items.map { it.id.toString() }).distinct()
+        write(context, timeline, page.items, ids, page.nextCursor)
+        return TimelineLoad.Loaded
+    }
+
+    /**
+     * Cuts every timeline to its newest [MAX_ENTRIES] posts and drops the records none holds, as at launch. A store
+     * that fails is left as it is, to be pruned at the next launch.
+     */
+    suspend fun prune() {
+        writing.withLock { guarded { dao.prune(MAX_ENTRIES).let { TimelineLoad.Loaded } } }
+    }
+
+    /**
+     * The outcome of [block], or [TimelineFailure.Unexpected] when the store throws: a failure of the store never
+     * escapes to a screen. Cancellation still propagates.
+     */
+    private inline fun guarded(block: () -> TimelineLoad): TimelineLoad = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        TimelineLoad.Failed(TimelineFailure.Unexpected)
+    }
 
     private suspend fun fail(context: ReaderContext, timeline: PublicTimeline, failure: TimelineFailure): TimelineLoad {
         if (failure == TimelineFailure.NotOffered) readers.hide(context, timeline)
