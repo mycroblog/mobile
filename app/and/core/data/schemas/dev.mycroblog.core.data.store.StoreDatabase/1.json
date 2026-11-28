@@ -1,0 +1,183 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "ac43ecc423bdfbb1dde575b71d0f9421",
+    "entities": [
+      {
+        "tableName": "posts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`context` TEXT NOT NULL, `id` TEXT NOT NULL, `account_id` TEXT NOT NULL, `boost_id` TEXT, `data` TEXT NOT NULL, PRIMARY KEY(`context`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "context",
+            "columnName": "context",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "account_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boostId",
+            "columnName": "boost_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "context",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`context` TEXT NOT NULL, `id` TEXT NOT NULL, `data` TEXT NOT NULL, PRIMARY KEY(`context`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "context",
+            "columnName": "context",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "context",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "timeline_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`context` TEXT NOT NULL, `timeline` TEXT NOT NULL, `position` INTEGER NOT NULL, `post_id` TEXT NOT NULL, PRIMARY KEY(`context`, `timeline`, `position`))",
+        "fields": [
+          {
+            "fieldPath": "context",
+            "columnName": "context",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeline",
+            "columnName": "timeline",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postId",
+            "columnName": "post_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "context",
+            "timeline",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_timeline_entries_context_post_id",
+            "unique": false,
+            "columnNames": [
+              "context",
+              "post_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_timeline_entries_context_post_id` ON `${TABLE_NAME}` (`context`, `post_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "timelines",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`context` TEXT NOT NULL, `timeline` TEXT NOT NULL, `loaded` INTEGER NOT NULL, `next_cursor` TEXT, `anchor_id` TEXT, `anchor_offset` INTEGER NOT NULL, PRIMARY KEY(`context`, `timeline`))",
+        "fields": [
+          {
+            "fieldPath": "context",
+            "columnName": "context",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeline",
+            "columnName": "timeline",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "loaded",
+            "columnName": "loaded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextCursor",
+            "columnName": "next_cursor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "anchorId",
+            "columnName": "anchor_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "anchorOffset",
+            "columnName": "anchor_offset",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "context",
+            "timeline"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ac43ecc423bdfbb1dde575b71d0f9421')"
+    ]
+  }
+}

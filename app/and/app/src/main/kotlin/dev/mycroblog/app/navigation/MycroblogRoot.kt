@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -53,6 +56,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.window.core.layout.WindowSizeClass
 import dev.mycroblog.app.R
+import dev.mycroblog.core.model.PublicTimeline
 import dev.mycroblog.feature.bookmarks.impl.bookmarksEntries
 import dev.mycroblog.feature.messages.impl.messagesEntries
 import dev.mycroblog.feature.notifications.impl.notificationsEntries
@@ -67,20 +71,32 @@ import dev.mycroblog.feature.timeline.impl.timelineEntries
  * one NavDisplay (ADR-0010 §2).
  */
 @Composable
-fun MycroblogRoot() {
+fun MycroblogRoot(viewModel: RootViewModel = hiltViewModel()) {
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
+    val offered by viewModel.offered.collectAsStateWithLifecycle()
+    val known = offered.orEmpty()
+    val hidden = buildSet {
+        if (PublicTimeline.LOCAL !in known) add(TopLevelDestination.LOCAL)
+        if (PublicTimeline.FEDERATED !in known) add(TopLevelDestination.FEDERATED)
+    }
     val state = rememberRootNavigationState(
         barLayout = !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND),
+        hidden = hidden,
     )
+    // Only once the offered timelines are known: a destination restored after the process ended stays selected.
+    LaunchedEffect(offered != null, hidden) { if (offered != null) state.leaveHidden() }
 
     val entryProvider = entryProvider<NavKey> {
-        timelineEntries(state::navigateUp)
+        timelineEntries(state::navigateUp, state::navigate, state::selectKey)
         notificationsEntries(state::navigateUp)
         searchEntries(state::navigateUp)
         messagesEntries(state::navigateUp)
         profileEntries(state::navigateUp)
         bookmarksEntries(state::navigateUp)
-        settingsEntries(state::navigateUp, state::navigate)
+        settingsEntries(state::navigateUp, state::navigate) { address ->
+            viewModel.readServer(address)
+            state.showHome()
+        }
         entry<MoreKey> { MoreScreen(destinations = state.moreItems, onSelect = state::select) }
     }
     // Each back stack keeps the saved state and the ViewModels of its entries while another one is shown.
@@ -176,7 +192,8 @@ private fun RootNavigationRail(state: RootNavigationState) {
                 )
                 .widthIn(min = RailWidth)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 4.dp)
+                // A label wider than the rail at a large font scale keeps a margin from the screen's edge.
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),

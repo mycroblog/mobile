@@ -1,0 +1,360 @@
+{
+  "items": [
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990001",
+      "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990001",
+      "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990001",
+      "account": {
+        "id": "01890a5d-ac96-774b-bcce-b302099a0001",
+        "username": "alice",
+        "acct": "alice",
+        "domain": "my.example",
+        "uri": "https://my.example/users/alice",
+        "display_name": "Alice :blobcat:",
+        "note": "",
+        "fields": [],
+        "emojis": [
+          {
+            "shortcode": "blobcat",
+            "url": "https://my.example/emoji/blobcat.gif",
+            "static_url": "https://my.example/emoji/blobcat.png"
+          }
+        ],
+        "badges": [],
+        "url": "https://my.example/@alice",
+        "locked": false,
+        "bot": false,
+        "created_at": "2026-01-02T03:04:05Z",
+        "followers_count": 0,
+        "following_count": 0,
+        "avatar": {
+          "small": {
+            "url": "https://cdn.my.example/avatar-alice-s.webp"
+          },
+          "medium": {
+            "url": "https://cdn.my.example/avatar-alice-m.webp"
+          },
+          "large": {
+            "url": "https://cdn.my.example/avatar-alice-l.webp"
+          }
+        }
+      },
+      "content": "<p>Good morning :blobcat:</p>",
+      "spoiler_text": "",
+      "sensitive": false,
+      "visibility": "public",
+      "language": "en",
+      "created_at": "2026-11-21T10:00:00Z",
+      "media_attachments": [],
+      "mentions": [],
+      "tags": [],
+      "emojis": [
+        {
+          "shortcode": "blobcat",
+          "url": "https://my.example/emoji/blobcat.gif",
+          "static_url": "https://my.example/emoji/blobcat.png"
+        }
+      ],
+      "replies_count": 1,
+      "boosts_count": 2,
+      "favourites_count": 3,
+      "reactions": [],
+      "filtered": [],
+      "edited_at": "2026-11-21T10:05:00Z"
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990002",
+      "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990002",
+      "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990002",
+      "account": {
+        "id": "01890a5d-ac96-774b-bcce-b302099a0002",
+        "username": "carol",
+        "acct": "carol@remote.example",
+        "domain": "remote.example",
+        "uri": "https://remote.example/users/carol",
+        "display_name": "Carol",
+        "note": "",
+        "fields": [],
+        "emojis": [],
+        "badges": [],
+        "url": "https://remote.example/@carol",
+        "locked": false,
+        "bot": false,
+        "created_at": "2026-01-02T03:04:05Z",
+        "followers_count": 0,
+        "following_count": 0
+      },
+      "content": "<p>The butler did it.</p>",
+      "spoiler_text": "Spoilers for :blobcat: book",
+      "sensitive": true,
+      "visibility": "public",
+      "language": "en",
+      "created_at": "2026-11-22T10:00:00Z",
+      "media_attachments": [
+        {
+          "id": "01890a5d-ac96-774b-bcce-b30209980001",
+          "type": "image",
+          "state": "ready",
+          "meta": {
+            "width": 800,
+            "height": 600,
+            "focus": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          "description": "A book cover",
+          "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+          "url": "https://cdn.my.example/1-l.webp",
+          "preview_url": "https://cdn.my.example/1-s.webp",
+          "variants": {
+            "small": {
+              "url": "https://cdn.my.example/1-s.webp"
+            },
+            "medium": {
+              "url": "https://cdn.my.example/1-m.webp"
+            },
+            "large": {
+              "url": "https://cdn.my.example/1-l.webp"
+            }
+          }
+        }
+      ],
+      "mentions": [],
+      "tags": [],
+      "emojis": [
+        {
+          "shortcode": "blobcat",
+          "url": "https://my.example/emoji/blobcat.gif",
+          "static_url": "https://my.example/emoji/blobcat.png"
+        }
+      ],
+      "replies_count": 0,
+      "boosts_count": 0,
+      "favourites_count": 0,
+      "reactions": [],
+      "filtered": []
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990003",
+      "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990003",
+      "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990003",
+      "account": {
+        "id": "01890a5d-ac96-774b-bcce-b302099a0002",
+        "username": "carol",
+        "acct": "carol@remote.example",
+        "domain": "remote.example",
+        "uri": "https://remote.example/users/carol",
+        "display_name": "Carol",
+        "note": "",
+        "fields": [],
+        "emojis": [],
+        "badges": [],
+        "url": "https://remote.example/@carol",
+        "locked": false,
+        "bot": false,
+        "created_at": "2026-01-02T03:04:05Z",
+        "followers_count": 0,
+        "following_count": 0
+      },
+      "content": "<p><span class=\"h-card\"><a href=\"https://my.example/@alice\" class=\"u-url mention\">@<span>alice</span></a></span> look <a href=\"https://my.example/tags/cats\" class=\"mention hashtag\" rel=\"tag\">#<span>cats</span></a></p>",
+      "spoiler_text": "",
+      "sensitive": false,
+      "visibility": "public",
+      "language": "en",
+      "created_at": "2026-11-23T10:00:00Z",
+      "media_attachments": [
+        {
+          "id": "01890a5d-ac96-774b-bcce-b30209980002",
+          "type": "video",
+          "state": "ready",
+          "meta": {
+            "width": 1920,
+            "height": 1080,
+            "duration": 12.5,
+            "focus": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          "url": "https://cdn.my.example/2.mp4",
+          "preview_url": "https://cdn.my.example/2-s.webp"
+        },
+        {
+          "id": "01890a5d-ac96-774b-bcce-b30209980003",
+          "type": "gifv",
+          "state": "ready",
+          "meta": {
+            "focus": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          "description": "A cat jumping",
+          "url": "https://cdn.my.example/3.mp4",
+          "preview_url": "https://cdn.my.example/3-s.webp"
+        },
+        {
+          "id": "01890a5d-ac96-774b-bcce-b30209980004",
+          "type": "audio",
+          "state": "ready",
+          "meta": {
+            "focus": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          "url": "https://cdn.my.example/4.m4a"
+        },
+        {
+          "id": "01890a5d-ac96-774b-bcce-b30209980005",
+          "type": "unknown",
+          "state": "failed",
+          "meta": {
+            "focus": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          "remote_url": "https://remote.example/files/5.xyz"
+        }
+      ],
+      "mentions": [
+        {
+          "id": "01890a5d-ac96-774b-bcce-b302099a0001",
+          "username": "alice",
+          "acct": "alice",
+          "url": "https://my.example/@alice"
+        }
+      ],
+      "tags": [
+        {
+          "name": "cats",
+          "url": "https://my.example/tags/cats"
+        }
+      ],
+      "emojis": [],
+      "replies_count": 0,
+      "boosts_count": 0,
+      "favourites_count": 0,
+      "reactions": [],
+      "filtered": [],
+      "omitted_media_count": 2
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990006",
+      "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990006",
+      "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990006",
+      "account": {
+        "id": "01890a5d-ac96-774b-bcce-b302099a0003",
+        "username": "bob",
+        "acct": "bob",
+        "domain": "my.example",
+        "uri": "https://my.example/users/bob",
+        "display_name": "",
+        "note": "",
+        "fields": [],
+        "emojis": [],
+        "badges": [],
+        "url": "https://my.example/@bob",
+        "locked": false,
+        "bot": false,
+        "created_at": "2026-01-02T03:04:05Z",
+        "followers_count": 0,
+        "following_count": 0
+      },
+      "content": "",
+      "spoiler_text": "",
+      "sensitive": false,
+      "visibility": "public",
+      "language": "en",
+      "created_at": "2026-11-26T10:00:00Z",
+      "media_attachments": [],
+      "mentions": [],
+      "tags": [],
+      "emojis": [],
+      "replies_count": 0,
+      "boosts_count": 0,
+      "favourites_count": 0,
+      "reactions": [],
+      "filtered": [],
+      "boost": {
+        "id": "01890a5d-ac96-774b-bcce-b30209990005",
+        "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990005",
+        "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990005",
+        "account": {
+          "id": "01890a5d-ac96-774b-bcce-b302099a0002",
+          "username": "carol",
+          "acct": "carol@remote.example",
+          "domain": "remote.example",
+          "uri": "https://remote.example/users/carol",
+          "display_name": "Carol",
+          "note": "",
+          "fields": [],
+          "emojis": [],
+          "badges": [],
+          "url": "https://remote.example/@carol",
+          "locked": false,
+          "bot": false,
+          "created_at": "2026-01-02T03:04:05Z",
+          "followers_count": 0,
+          "following_count": 0
+        },
+        "content": "<p>boost me</p>",
+        "spoiler_text": "",
+        "sensitive": false,
+        "visibility": "public",
+        "language": "en",
+        "created_at": "2026-11-25T10:00:00Z",
+        "media_attachments": [],
+        "mentions": [],
+        "tags": [],
+        "emojis": [],
+        "replies_count": 0,
+        "boosts_count": 0,
+        "favourites_count": 9,
+        "reactions": [],
+        "filtered": []
+      }
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990004",
+      "uri": "https://my.example/statuses/01890a5d-ac96-774b-bcce-b30209990004",
+      "url": "https://my.example/@x/01890a5d-ac96-774b-bcce-b30209990004",
+      "account": {
+        "id": "01890a5d-ac96-774b-bcce-b302099a0004",
+        "username": "",
+        "acct": "",
+        "domain": "unconfirmed.example",
+        "uri": "https://unconfirmed.example/actor/9",
+        "display_name": "",
+        "note": "",
+        "fields": [],
+        "emojis": [],
+        "badges": [],
+        "url": "https://unconfirmed.example/actor/9",
+        "locked": false,
+        "bot": false,
+        "created_at": "2026-01-02T03:04:05Z",
+        "followers_count": 0,
+        "following_count": 0
+      },
+      "content": "<p>hello from afar</p>",
+      "spoiler_text": "",
+      "sensitive": false,
+      "visibility": "public",
+      "language": "en",
+      "created_at": "2026-11-24T10:00:00Z",
+      "media_attachments": [],
+      "mentions": [],
+      "tags": [],
+      "emojis": [],
+      "replies_count": 0,
+      "boosts_count": 0,
+      "favourites_count": 0,
+      "reactions": [],
+      "filtered": []
+    }
+  ],
+  "next_cursor": "b2xkZXI+/=="
+}

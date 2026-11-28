@@ -48,6 +48,24 @@ extension APIClient {
 extension Instance {
     init(_ instance: Components.Schemas.Instance) {
         let description = instance.shortDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.init(name: instance.name, shortDescription: description?.isEmpty == false ? description : nil)
+        self.init(
+            name: instance.name,
+            shortDescription: description?.isEmpty == false ? description : nil,
+            timelines: InstanceTimelines(
+                local: InstanceAudience(instance.timelines.local),
+                federated: InstanceAudience(instance.timelines.federated)
+            ),
+            isSingleUser: instance.singleUser
+        )
+    }
+}
+
+extension InstanceAudience {
+    init(_ audience: Components.Schemas.InstanceAudience) {
+        switch audience {
+        case .off: self = .off
+        case .signedIn: self = .signedIn
+        case .everyone: self = .everyone
+        }
     }
 }

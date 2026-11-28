@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="placeholder_empty">Nothing here yet</string>
+    <string name="placeholder_signed_out">This comes with signing in to an account. Signing in comes in a later version.</string>
     <string name="navigate_up">Navigate up</string>
+
+    <!-- A post (#41). %1$s is the display name of the account that boosted it. -->
+    <string name="post_boosted_by">%1$s boosted</string>
+    <string name="post_edited">Edited</string>
+    <string name="post_show_more">Show post</string>
+    <string name="post_show_less">Hide post</string>
+    <string name="post_show_media">Show sensitive media</string>
+    <string name="post_hide_media">Hide sensitive media</string>
+    <string name="post_content_warning">Content warning</string>
+    <string name="post_unshown_content">This post has content this app does not show yet.</string>
+    <string name="post_open_on_server">Open the post</string>
+    <string name="post_media_image">Image</string>
+    <string name="post_media_gifv">Animated image</string>
+    <string name="post_media_video">Video</string>
+    <string name="post_media_audio">Audio</string>
+    <string name="post_media_unknown">Attachment</string>
+    <!-- %1$s is the kind of medium (Image, Video), %2$s the description its author wrote. -->
+    <string name="post_media_described">%1$s: %2$s</string>
+    <plurals name="post_omitted_media">
+        <item quantity="one">%d more attachment is not shown</item>
+        <item quantity="other">%d more attachments are not shown</item>
+    </plurals>
+    <plurals name="post_replies">
+        <item quantity="one">%d reply</item>
+        <item quantity="other">%d replies</item>
+    </plurals>
+    <plurals name="post_boosts">
+        <item quantity="one">%d boost</item>
+        <item quantity="other">%d boosts</item>
+    </plurals>
+    <plurals name="post_favourites">
+        <item quantity="one">%d favourite</item>
+        <item quantity="other">%d favourites</item>
+    </plurals>
 </resources>

@@ -449,7 +449,7 @@ ios_test_layer() {
 }
 
 # The unit test target of each package that has one, as <package>:<target>.
-IOS_UNIT_TESTS=(API:APITests Domain:DomainTests Features:FeaturesUnitTests)
+IOS_UNIT_TESTS=(API:APITests AppData:AppDataTests Domain:DomainTests Features:FeaturesUnitTests)
 
 # The unit tests of each package of IOS_UNIT_TESTS, each as the layer unit-<package>: the logic, and the tests against
 # shared/fixtures.
@@ -464,13 +464,21 @@ ios_test_unit() {
     fail "the unit tests failed: fix the code, or the fixture under shared/fixtures when what it pins has changed in my (above)."
 }
 
-# The integration tests: the API package's client against the local my of scripts/my.sh, which the task starts.
+# The integration test target of each package that has one, as <package>:<target>.
+IOS_INTEGRATION_TESTS=(API:APIIntegrationTests AppData:AppDataIntegrationTests)
+
+# The integration tests of each package of IOS_INTEGRATION_TESTS, each as the layer integration-<package>, against the
+# local my of scripts/my.sh, which the task starts.
 ios_test_integration() {
-  local url=""
+  local url="" failed=0 entry pkg target
   [[ "$IOS_TEST_PHASE" == build ]] ||
     url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task ios:test does)."
-  (cd "$IOS/Packages/API" && TEST_RUNNER_MY_URL="$url" \
-    ios_test_layer integration -scheme API -derivedDataPath "$IOS_BUILD/packages/API" -only-testing:APIIntegrationTests) ||
+  for entry in "${IOS_INTEGRATION_TESTS[@]}"; do
+    pkg="${entry%%:*}" target="${entry#*:}"
+    (cd "$IOS/Packages/$pkg" && TEST_RUNNER_MY_URL="$url" ios_test_layer "integration-$pkg" -scheme "$pkg" \
+      -derivedDataPath "$IOS_BUILD/packages/$pkg" -only-testing:"$target") || failed=1
+  done
+  (( failed == 0 )) ||
     fail "the integration tests against my at $url failed: read the issues above; scripts/my.sh says where my's log is (.tmp/my.log)."
 }
 
@@ -485,15 +493,17 @@ check_ios_test() {
   ios_test_integration
 }
 
-# The UI-flow tests: XCUITest drives the app, built for testing, on the test simulator.
+# The UI-flow tests: XCUITest drives the app, built for testing, on the test simulator, against the local my of
+# scripts/my.sh, which the task starts.
 check_ios_test_flow() {
   [[ -d "$IOS/Mycroblog.xcodeproj" ]] || check_ios_generate
-  local args=(-project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app")
+  local args=(-project "$IOS/Mycroblog.xcodeproj" -scheme Mycroblog -derivedDataPath "$IOS_BUILD/app") url
   IOS_TEST_PHASE=build
   ios_test_layer flow "${args[@]}" || fail "the UI-flow tests do not build: fix the errors above."
+  url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task ios:test-flow does)."
   IOS_TEST_PHASE=run
   ios_test_boot
-  ios_test_layer flow "${args[@]}" ||
+  TEST_RUNNER_MY_URL="$url" ios_test_layer flow "${args[@]}" ||
     fail "the UI-flow tests failed: the result bundle above holds a screen recording and the screens of each step."
 }
 
@@ -837,7 +847,7 @@ check_android_launch() {
 # last against the local my at MY_URL (task android:test starts it with task my:up).
 check_android_test() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local url="${MY_URL:-}" tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
+  local url="${MY_URL:-}" tasks=(:core:model:test :core:api:test testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
   [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
   MY_URL="$url" android_gradle "${tasks[@]}" --continue ||
     fail "the Android tests failed: fix what each failed test says above."
@@ -849,9 +859,14 @@ check_android_test_flow() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
   android_gradle :app:assembleDebug :app:assembleDebugAndroidTest ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebugAndroidTest), then check again.'
+  local url port
+  url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task android:test-flow does)."
+  port="${url##*:}"
   take_device "the Android UI-flow tests"
   boot_android phone pixel_9
-  ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest ||
+  # The emulator reaches the host's loopback, where the local my listens, at 10.0.2.2.
+  ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest \
+    "-Pandroid.testInstrumentationRunnerArguments.myUrl=http://10.0.2.2:${port%%/*}" ||
     fail "the Android UI-flow tests failed on drive-phone: fix what each failed test says above; the report is app/and/app/build/reports/androidTests/connected/debug/index.html."
   printf 'check: the UI-flow tests pass on drive-phone (pixel_9)\n'
   release_device

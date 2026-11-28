@@ -12,6 +12,9 @@ final class MoreFlowTests: XCTestCase {
         app.launch()
 
         app.tabBars.buttons["More"].tap()
+        // A relaunch restores the destination last opened from More: go back to its list.
+        let back = app.navigationBars.buttons["BackButton"]
+        if back.waitForExistence(timeout: 2) { back.tap() }
         app.buttons["Settings"].tap()
 
         XCTAssertTrue(

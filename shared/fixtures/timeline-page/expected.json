@@ -1,0 +1,244 @@
+{
+  "next_cursor": "b2xkZXI+/==",
+  "items": [
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990001",
+      "boosted_by": null,
+      "author": {
+        "display_name": [
+          {
+            "text": "Alice "
+          },
+          {
+            "emoji": "blobcat"
+          }
+        ],
+        "handle": "@alice",
+        "avatar": "https://cdn.my.example/avatar-alice-s.webp"
+      },
+      "content_warning": null,
+      "content": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "Good morning "
+            },
+            {
+              "emoji": "blobcat"
+            }
+          ]
+        }
+      ],
+      "content_hidden": false,
+      "media_hidden": false,
+      "media": [],
+      "omitted_media_count": 0,
+      "edited": true,
+      "counts": {
+        "replies": 1,
+        "boosts": 2,
+        "favourites": 3
+      }
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990002",
+      "boosted_by": null,
+      "author": {
+        "display_name": [
+          {
+            "text": "Carol"
+          }
+        ],
+        "handle": "@carol@remote.example",
+        "avatar": null
+      },
+      "content_warning": [
+        {
+          "text": "Spoilers for "
+        },
+        {
+          "emoji": "blobcat"
+        },
+        {
+          "text": " book"
+        }
+      ],
+      "content": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "The butler did it."
+            }
+          ]
+        }
+      ],
+      "content_hidden": true,
+      "media_hidden": true,
+      "media": [
+        {
+          "type": "image",
+          "description": "A book cover",
+          "preview": "https://cdn.my.example/1-s.webp",
+          "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+        }
+      ],
+      "omitted_media_count": 0,
+      "edited": false,
+      "counts": {
+        "replies": 0,
+        "boosts": 0,
+        "favourites": 0
+      }
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990003",
+      "boosted_by": null,
+      "author": {
+        "display_name": [
+          {
+            "text": "Carol"
+          }
+        ],
+        "handle": "@carol@remote.example",
+        "avatar": null
+      },
+      "content_warning": null,
+      "content": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "@alice",
+              "link": {
+                "type": "mention",
+                "href": "https://my.example/@alice"
+              }
+            },
+            {
+              "text": " look "
+            },
+            {
+              "text": "#cats",
+              "link": {
+                "type": "hashtag",
+                "href": "https://my.example/tags/cats"
+              }
+            }
+          ]
+        }
+      ],
+      "content_hidden": false,
+      "media_hidden": false,
+      "media": [
+        {
+          "type": "video",
+          "description": null,
+          "preview": "https://cdn.my.example/2-s.webp",
+          "blurhash": null
+        },
+        {
+          "type": "gifv",
+          "description": "A cat jumping",
+          "preview": "https://cdn.my.example/3-s.webp",
+          "blurhash": null
+        },
+        {
+          "type": "audio",
+          "description": null,
+          "preview": null,
+          "blurhash": null
+        },
+        {
+          "type": "unknown",
+          "description": null,
+          "preview": null,
+          "blurhash": null
+        }
+      ],
+      "omitted_media_count": 2,
+      "edited": false,
+      "counts": {
+        "replies": 0,
+        "boosts": 0,
+        "favourites": 0
+      }
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990006",
+      "boosted_by": {
+        "display_name": [
+          {
+            "text": "bob"
+          }
+        ],
+        "handle": "@bob"
+      },
+      "author": {
+        "display_name": [
+          {
+            "text": "Carol"
+          }
+        ],
+        "handle": "@carol@remote.example",
+        "avatar": null
+      },
+      "content_warning": null,
+      "content": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "boost me"
+            }
+          ]
+        }
+      ],
+      "content_hidden": false,
+      "media_hidden": false,
+      "media": [],
+      "omitted_media_count": 0,
+      "edited": false,
+      "counts": {
+        "replies": 0,
+        "boosts": 0,
+        "favourites": 9
+      }
+    },
+    {
+      "id": "01890a5d-ac96-774b-bcce-b30209990004",
+      "boosted_by": null,
+      "author": {
+        "display_name": [
+          {
+            "text": "unconfirmed.example"
+          }
+        ],
+        "handle": null,
+        "avatar": null
+      },
+      "content_warning": null,
+      "content": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "hello from afar"
+            }
+          ]
+        }
+      ],
+      "content_hidden": false,
+      "media_hidden": false,
+      "media": [],
+      "omitted_media_count": 0,
+      "edited": false,
+      "counts": {
+        "replies": 0,
+        "boosts": 0,
+        "favourites": 0
+      }
+    }
+  ]
+}

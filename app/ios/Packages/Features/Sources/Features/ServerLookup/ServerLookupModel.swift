@@ -50,6 +50,12 @@ public final class ServerLookupModel: Identifiable {
         !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
     }
 
+    /// The server that was looked up and its instance, once the lookup succeeded.
+    public var loadedServer: (address: ServerAddress, instance: Instance)? {
+        guard case .loaded(_, let instance) = state, let lastAddress else { return nil }
+        return (lastAddress, instance)
+    }
+
     private var isLoading: Bool {
         if case .loading = state { true } else { false }
     }

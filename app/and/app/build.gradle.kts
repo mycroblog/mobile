@@ -27,6 +27,12 @@ dependencies {
     }
 
     implementation(libs.androidx.activity.compose)
+    // Links of posts open in a Custom Tab (MainActivity).
+    implementation(libs.androidx.browser)
+    // The app's image loader: images over the shared OkHttp, and animated GIF and WebP (MycroblogApplication).
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3.adaptive)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)

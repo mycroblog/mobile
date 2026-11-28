@@ -21,6 +21,8 @@ targets:
     platform: iOS
     sources:
       - path: App/Sources
+      # The privacy manifest: the app reads and writes its own user defaults (the chosen server).
+      - path: App/PrivacyInfo.xcprivacy
     dependencies:
       - package: Features
       - package: AppData

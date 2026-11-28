@@ -1,14 +1,22 @@
+import AppData
 import SwiftUI
 
-/// The Settings destination. "Add an account" opens the screen that looks up a server; the root of the scene
-/// presents it, so that it survives the destinations being rebuilt when the width changes.
+/// The Settings destination. The server section shows the server being read and changes it with the screen that looks
+/// up a server, which the root of the scene presents, so that it survives the destinations being rebuilt when the
+/// width changes.
 struct SettingsScreen: View {
-    let addAccount: () -> Void
+    let server: ChosenServer?
+    let chooseServer: () -> Void
 
     var body: some View {
         List {
             Section {
-                Button("Add an account", action: addAccount)
+                if let server {
+                    LabeledContent("Reading", value: server.context.host)
+                }
+                Button(server == nil ? LocalizedStringKey("Choose a Server") : "Change Server", action: chooseServer)
+            } header: {
+                Text("Server")
             }
         }
         .navigationTitle(TopLevelDestination.settings.title)

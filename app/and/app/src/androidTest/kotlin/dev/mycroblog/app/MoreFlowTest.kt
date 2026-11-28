@@ -25,6 +25,6 @@ class MoreFlowTest {
         compose.onNodeWithText(string(R.string.destination_settings)).performClick()
 
         compose.onNodeWithText(string(SettingsR.string.settings_title)).assertIsDisplayed()
-        compose.onNodeWithText(string(SettingsR.string.settings_add_account)).assertIsDisplayed()
+        compose.onNodeWithText(string(SettingsR.string.settings_server_section)).assertIsDisplayed()
     }
 }

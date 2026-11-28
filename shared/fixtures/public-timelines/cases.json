@@ -1,0 +1,10 @@
+{
+  "rule": "Which server-provided timelines a reader who has not signed in is offered, from Instance.timelines and Instance.single_user: a timeline whose audience is everyone, unless the server is single_user. signed_in and off are not offered.",
+  "cases": [
+    {"timelines": {"local": "everyone", "federated": "everyone"}, "single_user": false, "offered": ["local", "federated"]},
+    {"timelines": {"local": "everyone", "federated": "signed_in"}, "single_user": false, "offered": ["local"]},
+    {"timelines": {"local": "off", "federated": "everyone"}, "single_user": false, "offered": ["federated"]},
+    {"timelines": {"local": "signed_in", "federated": "off"}, "single_user": false, "offered": []},
+    {"timelines": {"local": "everyone", "federated": "everyone"}, "single_user": true, "offered": []}
+  ]
+}

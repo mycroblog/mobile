@@ -3,4 +3,18 @@
     <string name="home_timeline_title">Home</string>
     <string name="local_timeline_title">Local</string>
     <string name="federated_timeline_title">Federated</string>
+
+    <string name="home_choose_server_message">Choose a server to read the posts it shares with everyone.</string>
+    <string name="home_choose_server">Choose a server</string>
+    <string name="home_signed_out_message">Once you sign in, Home shows the posts of the accounts you follow. Signing in comes in a later version; until then, read the timelines this server shares with everyone.</string>
+    <string name="home_open_local">Read the Local timeline</string>
+    <string name="home_open_federated">Read the Federated timeline</string>
+
+    <string name="timeline_retry">Try again</string>
+    <string name="timeline_empty">No posts yet.</string>
+    <string name="timeline_end">You have reached the oldest post.</string>
+    <string name="timeline_no_answer">The server did not answer. Check your connection.</string>
+    <string name="timeline_unexpected">Something went wrong while loading this timeline.</string>
+    <string name="timeline_rate_limited">The server asked to wait before loading more. Try again in a moment.</string>
+    <string name="timeline_not_offered">This server no longer offers this timeline.</string>
 </resources>

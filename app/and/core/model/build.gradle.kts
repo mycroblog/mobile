@@ -1,6 +1,12 @@
 // The domain types: plain Kotlin, used by every other module, depending on none.
 plugins {
     alias(libs.plugins.mycroblog.jvm.library)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+// The records of the store (ADR-0008 §2) are kept as JSON in it.
+dependencies {
+    api(libs.kotlinx.serialization.core)
 }
 
 // The unit tests (ADR-0006 §1) read the shared fixtures (ADR-0002 §2) from shared/fixtures of the repository, never a

@@ -12,10 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 
 /**
- * A destination that has no content yet: its title, and a line that says so. With [onUp], its top app bar has an Up
- * button that calls it.
+ * A destination that needs an account, for a reader who has not signed in: its title, and a line that says it comes
+ * with signing in. With [onUp], its top app bar has an Up button that calls it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,11 +31,12 @@ fun PlaceholderScreen(title: String, modifier: Modifier = Modifier, onUp: (() ->
             )
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
             Text(
-                text = stringResource(R.string.placeholder_empty),
+                text = stringResource(R.string.placeholder_signed_out),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
     }

@@ -35,43 +35,40 @@ import dev.mycroblog.feature.timeline.api.LocalTimelineKey
 
 /**
  * The top-level destinations of ADR-0002 §6, in its order. The navigation rail shows them all; the navigation bar,
- * which holds at most five items (ADR-0010 §4), shows those [inBar] and a "More" item that opens the rest.
+ * which holds at most five items (ADR-0010 §4), shows the first four of those shown and a "More" item that opens the
+ * rest.
  *
- * The local and federated timelines are shown while the app knows no server; once it does, only the timelines the
- * server provides are shown (ADR-0002 §6).
+ * The local and federated timelines are shown only when the reader's server offers them to everyone (ADR-0002 §6);
+ * before a server is chosen, neither is.
  */
 enum class TopLevelDestination(
     val key: NavKey,
     @param:StringRes val label: Int,
     val selectedIcon: ImageVector,
     val icon: ImageVector,
-    val inBar: Boolean,
 ) {
-    HOME(HomeTimelineKey, R.string.destination_home, Icons.Filled.Home, Icons.Outlined.Home, inBar = true),
-    LOCAL(LocalTimelineKey, R.string.destination_local, Icons.Filled.Groups, Icons.Outlined.Groups, inBar = false),
+    HOME(HomeTimelineKey, R.string.destination_home, Icons.Filled.Home, Icons.Outlined.Home),
+    LOCAL(LocalTimelineKey, R.string.destination_local, Icons.Filled.Groups, Icons.Outlined.Groups),
     FEDERATED(
         FederatedTimelineKey,
         R.string.destination_federated,
         Icons.Filled.Public,
         Icons.Outlined.Public,
-        inBar = false,
     ),
     NOTIFICATIONS(
         NotificationsKey,
         R.string.destination_notifications,
         Icons.Filled.Notifications,
         Icons.Outlined.Notifications,
-        inBar = true,
     ),
-    SEARCH(SearchKey, R.string.destination_search, Icons.Filled.Search, Icons.Outlined.Search, inBar = true),
-    MESSAGES(MessagesKey, R.string.destination_messages, Icons.Filled.Mail, Icons.Outlined.Mail, inBar = true),
-    PROFILE(ProfileKey, R.string.destination_profile, Icons.Filled.Person, Icons.Outlined.Person, inBar = false),
+    SEARCH(SearchKey, R.string.destination_search, Icons.Filled.Search, Icons.Outlined.Search),
+    MESSAGES(MessagesKey, R.string.destination_messages, Icons.Filled.Mail, Icons.Outlined.Mail),
+    PROFILE(ProfileKey, R.string.destination_profile, Icons.Filled.Person, Icons.Outlined.Person),
     BOOKMARKS(
         BookmarksKey,
         R.string.destination_bookmarks,
         Icons.Filled.Bookmark,
         Icons.Outlined.BookmarkBorder,
-        inBar = false,
     ),
-    SETTINGS(SettingsKey, R.string.destination_settings, Icons.Filled.Settings, Icons.Outlined.Settings, inBar = false),
+    SETTINGS(SettingsKey, R.string.destination_settings, Icons.Filled.Settings, Icons.Outlined.Settings),
 }

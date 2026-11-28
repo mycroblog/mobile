@@ -10,22 +10,39 @@ public struct ServerLookupScreen: View {
     /// Whether the address field has the keyboard; a lookup ends it, so that what it shows is not under the keyboard.
     @FocusState private var isAddressFocused: Bool
 
-    public init(model: ServerLookupModel) {
+    private let choose: ((ServerAddress, Instance) -> Void)?
+
+    /// The screen of `model`; with `choose`, a server that was looked up can be chosen to read.
+    public init(model: ServerLookupModel, choose: ((ServerAddress, Instance) -> Void)? = nil) {
         self.model = model
+        self.choose = choose
     }
 
     public var body: some View {
         Form {
             Section {
-                TextField("Server address", text: $model.address, prompt: Text(verbatim: "example.social"))
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityLabel(Text("Server address"))
-                    .focused($isAddressFocused)
-                    .submitLabel(.go)
-                    .onSubmit(lookUp)
+                HStack {
+                    TextField("Server address", text: $model.address, prompt: Text(verbatim: "example.social"))
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityLabel(Text("Server address"))
+                        .focused($isAddressFocused)
+                        .submitLabel(.go)
+                        .onSubmit(lookUp)
+                    if !model.address.isEmpty {
+                        Button {
+                            model.address = ""
+                            isAddressFocused = true
+                        } label: {
+                            Label("Clear", systemImage: "xmark.circle.fill")
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
                 Button("Look up", action: lookUp)
                     .disabled(!model.canLookUp)
             } header: {
@@ -37,6 +54,13 @@ public struct ServerLookupScreen: View {
                 }
             }
             ServerLookupResult(state: model.state, tryAgain: tryAgain)
+            if let choose, let server = model.loadedServer {
+                Section {
+                    Button("Read This Server") { choose(server.address, server.instance) }
+                } footer: {
+                    Text("Read the public timelines this server offers, without signing in.")
+                }
+            }
         }
         .navigationTitle("Choose a server")
         .navigationBarTitleDisplayMode(.inline)
@@ -44,6 +68,12 @@ public struct ServerLookupScreen: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", role: .cancel) { dismiss() }
             }
+        }
+        .task {
+            // The field takes the keyboard when the screen opens with nothing looked up yet, once the sheet is up.
+            guard model.state == .idle else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            isAddressFocused = true
         }
         .onChange(of: model.state) { _, state in
             if state == .invalidAddress {
@@ -120,7 +150,7 @@ extension InstanceLookupError {
     /// Why the lookup failed, in plain words.
     fileprivate var reason: String {
         switch self {
-        case .unreachable: String(localized: "The server did not answer.")
+        case .unreachable: String(localized: "Check the address and your connection.")
         case .notMycroblog: String(localized: "This is not a mycroblog server.")
         case .problem(let title, _): title
         }
