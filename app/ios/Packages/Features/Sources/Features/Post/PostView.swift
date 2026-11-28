@@ -140,10 +140,12 @@ struct PostView: View {
             Label {
                 RunsText(runs: warning)
                     .fontWeight(.semibold)
+                    .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
-                    .accessibilityLabel(Text("Content warning"))
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("Content warning: \(warning.spokenText)"))
             Button(isContentOpen ? LocalizedStringKey("Hide Content") : "Show Content", action: toggleContent)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -278,9 +280,14 @@ private struct UnshownPartsLine: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("This post has content the app cannot show yet.", systemImage: "info.circle")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Label {
+                Text("This post has content the app cannot show yet.")
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "info.circle")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
             Button("Open on the Web") { openURL(url) }
                 .font(.subheadline)
                 .accessibilityHidden(true)

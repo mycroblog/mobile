@@ -12,6 +12,10 @@ struct MediaGrid: View {
     let canHide: Bool
     let toggle: () -> Void
 
+    /// The height of what the reader sees of the list, which no medium is taller than.
+    @Environment(\.visibleHeight) private var visibleHeight
+    @ScaledMetric(relativeTo: .body) private var minimumHitTarget: CGFloat = 44
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topLeading) {
@@ -22,7 +26,7 @@ struct MediaGrid: View {
                                 // The size follows the width and the medium's shape, never the text size.
                                 Color.clear
                                     .aspectRatio(aspectRatio(of: attachment), contentMode: .fit)
-                                    .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity, maxHeight: maxTileHeight)
                                     .overlay { MediaTile(attachment: attachment, isHidden: isHidden) }
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
@@ -43,11 +47,13 @@ struct MediaGrid: View {
                         Label("Hide Media", systemImage: "eye.slash")
                             .labelStyle(.iconOnly)
                             .padding(8)
+                            .background(.regularMaterial, in: Circle())
+                            .frame(minWidth: minimumHitTarget, minHeight: minimumHitTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
-                    .background(.regularMaterial, in: Circle())
-                    .padding(6)
+                    .padding(2)
                 }
             }
             if omittedCount > 0 {
@@ -56,6 +62,12 @@ struct MediaGrid: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// The tallest a tile may be: most of the visible height for one medium, half of it for a row of two.
+    private var maxTileHeight: CGFloat {
+        guard visibleHeight.isFinite, visibleHeight > 0 else { return .infinity }
+        return media.count == 1 ? visibleHeight * 0.8 : visibleHeight * 0.45
     }
 
     /// One medium alone keeps its shape, between a tall 3:4 and a wide 2:1; several are square tiles.
@@ -176,4 +188,9 @@ struct BlurhashImage: View {
         else { return nil }
         return UIImage(cgImage: cgImage)
     }
+}
+
+extension EnvironmentValues {
+    /// The height of what the reader sees of a list of posts, or infinity when it is not known.
+    @Entry var visibleHeight: CGFloat = .infinity
 }

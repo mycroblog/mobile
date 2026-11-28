@@ -12,6 +12,10 @@ struct TimelineScreen: View {
     /// Where the rows are, read without redrawing: the top of each visible row in the scroll view, and the offset.
     @State private var geometry = RowGeometry()
     @State private var didRestore = false
+    /// The height of what the reader sees of the list, which caps the height of media.
+    @State private var visibleHeight: CGFloat = .infinity
+    /// The widest the posts run, so that lines stay readable in a wide window.
+    @ScaledMetric(relativeTo: .body) private var readableWidth: CGFloat = 640
 
     var body: some View {
         content
@@ -68,6 +72,8 @@ struct TimelineScreen: View {
                         toggleMedia: { toggleMedia(of: item.id) }
                     )
                     .padding(.horizontal)
+                    .frame(maxWidth: readableWidth)
+                    .frame(maxWidth: .infinity)
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.frame(in: .scrollView).minY
                     } action: { minY in
@@ -88,6 +94,12 @@ struct TimelineScreen: View {
             geometry.contentOffset = scroll.offset
             geometry.insetTop = scroll.insetTop
         }
+        .onScrollGeometryChange(for: CGFloat.self) { scroll in
+            scroll.containerSize.height - scroll.contentInsets.top - scroll.contentInsets.bottom
+        } action: { _, height in
+            visibleHeight = height
+        }
+        .environment(\.visibleHeight, visibleHeight)
         .onScrollPhaseChange { _, phase in
             if phase == .idle { savePosition() }
         }

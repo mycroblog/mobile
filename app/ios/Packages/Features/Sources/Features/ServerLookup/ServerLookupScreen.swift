@@ -21,15 +21,28 @@ public struct ServerLookupScreen: View {
     public var body: some View {
         Form {
             Section {
-                TextField("Server address", text: $model.address, prompt: Text(verbatim: "example.social"))
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityLabel(Text("Server address"))
-                    .focused($isAddressFocused)
-                    .submitLabel(.go)
-                    .onSubmit(lookUp)
+                HStack {
+                    TextField("Server address", text: $model.address, prompt: Text(verbatim: "example.social"))
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityLabel(Text("Server address"))
+                        .focused($isAddressFocused)
+                        .submitLabel(.go)
+                        .onSubmit(lookUp)
+                    if !model.address.isEmpty {
+                        Button {
+                            model.address = ""
+                            isAddressFocused = true
+                        } label: {
+                            Label("Clear", systemImage: "xmark.circle.fill")
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
                 Button("Look up", action: lookUp)
                     .disabled(!model.canLookUp)
             } header: {

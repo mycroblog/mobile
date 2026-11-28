@@ -1,5 +1,6 @@
 import AppData
 import Domain
+import Foundation
 import SwiftUI
 
 /// The root of a scene: the top-level destinations in the OS tab container, which shows a tab bar in compact width
@@ -19,6 +20,9 @@ public struct RootView: View {
     @SceneStorage("RootView.serverAddress") private var serverAddress = ""
     /// The page of a tapped link, open in the in-app browser.
     @State private var browsed: BrowsedURL?
+    /// When the set of tabs last changed: at the scene's start and when the width changes. Rebuilding the tabs makes the
+    /// tab container select its first tab, which is not the reader's choice.
+    @State private var tabsChangedAt = Date.now
 
     private let session: ReaderSession
 
@@ -87,6 +91,7 @@ public struct RootView: View {
             isLookingUpAServer = !isClosed
         }
         .onAppear(perform: restoreServerLookup)
+        .onChange(of: tabDestinations) { tabsChangedAt = .now }
     }
 
     private func lookUpAServer() {
@@ -109,6 +114,14 @@ public struct RootView: View {
             }
             return tab
         } set: { tab in
+            // Keep the restored or selected destination when the container falls back to Home as it rebuilds its tabs.
+            let isRebuilding = Date.now.timeIntervalSince(tabsChangedAt) < 1
+            if isRebuilding, tab == .destination(.home), navigation.tab(isCompact: isCompact) != tab,
+                case .destination(let selected) = navigation.tab(isCompact: isCompact),
+                availableDestinations.contains(selected)
+            {
+                return
+            }
             navigation.select(tab: tab)
         }
     }
