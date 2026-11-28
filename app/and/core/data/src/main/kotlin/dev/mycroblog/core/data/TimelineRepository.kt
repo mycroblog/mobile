@@ -1,9 +1,11 @@
 package dev.mycroblog.core.data
 
+import dev.mycroblog.core.data.store.PostStateEntity
 import dev.mycroblog.core.data.store.StoreDatabase
 import dev.mycroblog.core.data.store.TimelineRow
 import dev.mycroblog.core.model.Account
 import dev.mycroblog.core.model.PostRecord
+import dev.mycroblog.core.model.PostState
 import dev.mycroblog.core.model.PublicTimeline
 import dev.mycroblog.core.model.ReaderContext
 import dev.mycroblog.core.model.TimelinePosition
@@ -47,6 +49,16 @@ class TimelineRepository @Inject constructor(database: StoreDatabase) {
     /** Saves the reading position of [timeline] in [context], once it was loaded; null forgets it. */
     suspend fun savePosition(context: ReaderContext, timeline: PublicTimeline, position: TimelinePosition?) {
         dao.updatePosition(context.origin, timeline.apiName, position?.anchorId, position?.offset ?: 0)
+    }
+
+    /** What the reader opened of the posts of [context], by post id; a post with no entry has [PostState]'s defaults. */
+    fun postStates(context: ReaderContext): Flow<Map<String, PostState>> = dao.postStates(context.origin)
+        .map { states -> states.associate { it.postId to PostState(it.contentOpen, it.mediaShown) } }
+        .distinctUntilChanged()
+
+    /** Saves what the reader opened of the post [postId] in [context]. */
+    suspend fun setPostState(context: ReaderContext, postId: String, state: PostState) {
+        dao.upsertPostState(PostStateEntity(context.origin, postId, state.contentOpen, state.mediaShown))
     }
 
     private fun TimelineRow.toPost(): TimelinePost? {

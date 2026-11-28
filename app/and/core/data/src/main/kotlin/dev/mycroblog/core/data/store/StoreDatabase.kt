@@ -18,8 +18,14 @@ import kotlinx.coroutines.flow.Flow
  * domain record. Everything here can be fetched again; the database is a cache that may be thrown away.
  */
 @Database(
-    entities = [PostEntity::class, AccountEntity::class, TimelineEntryEntity::class, TimelineEntity::class],
-    version = 1,
+    entities = [
+        PostEntity::class,
+        AccountEntity::class,
+        TimelineEntryEntity::class,
+        TimelineEntity::class,
+        PostStateEntity::class,
+    ],
+    version = 2,
 )
 abstract class StoreDatabase : RoomDatabase() {
     abstract fun timelines(): TimelineDao
@@ -66,6 +72,19 @@ data class TimelineEntity(
     @ColumnInfo(name = "anchor_offset") val anchorOffset: Int,
 )
 
+/**
+ * What the reader opened of a post of a context: its content warning ([contentOpen]) and its sensitive media
+ * ([mediaShown]). Screen state, kept apart from the post's record (ADR-0008 §2), so that fetching the post again keeps
+ * it.
+ */
+@Entity(tableName = "post_states", primaryKeys = ["context", "post_id"])
+data class PostStateEntity(
+    val context: String,
+    @ColumnInfo(name = "post_id") val postId: String,
+    @ColumnInfo(name = "content_open") val contentOpen: Boolean,
+    @ColumnInfo(name = "media_shown") val mediaShown: Boolean,
+)
+
 /** A row of a timeline: its entry's post and author, and for a boost the boosted post and its author. */
 data class TimelineRow(
     val post: String,
@@ -110,6 +129,12 @@ abstract class TimelineDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertTimeline(timeline: TimelineEntity)
+
+    @Query("SELECT * FROM post_states WHERE context = :context")
+    abstract fun postStates(context: String): Flow<List<PostStateEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun upsertPostState(state: PostStateEntity)
 
     @Insert
     abstract suspend fun insertEntries(entries: List<TimelineEntryEntity>)
@@ -159,7 +184,17 @@ abstract class TimelineDao {
         deleteEntriesFrom(max)
         deleteUnheldPosts()
         deleteUnheldAccounts()
+        deleteUnheldPostStates()
     }
+
+    @Query(
+        """
+        DELETE FROM post_states WHERE NOT EXISTS (
+            SELECT 1 FROM posts p WHERE p.context = post_states.context AND p.id = post_states.post_id
+        )
+        """,
+    )
+    abstract suspend fun deleteUnheldPostStates()
 
     @Query("DELETE FROM timeline_entries WHERE position >= :max")
     abstract suspend fun deleteEntriesFrom(max: Int)

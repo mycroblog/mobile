@@ -19,7 +19,6 @@ fun EntryProviderScope<NavKey>.settingsEntries(
     entry<SettingsKey> { key ->
         SettingsRoute(
             onChangeServer = { navigate(ChooseServerKey) },
-            onAddAccount = { navigate(ChooseServerKey) },
             onUp = navigateUp(key),
         )
     }

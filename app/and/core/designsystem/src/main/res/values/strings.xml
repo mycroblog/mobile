@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="placeholder_empty">Nothing here yet</string>
+    <string name="placeholder_signed_out">This comes with signing in to an account. Signing in comes in a later version.</string>
     <string name="navigate_up">Navigate up</string>
 
     <!-- A post (#41). %1$s is the display name of the account that boosted it. -->

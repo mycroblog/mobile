@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
@@ -82,7 +83,10 @@ class PublicTimelineFlowTest {
         check(posts.isNotEmpty()) { "the Local timeline of $myUrl has no post" }
         val newestAuthor = posts.first().getJSONObject("account").getString("display_name")
 
-        compose.onNode(hasText(string(TimelineR.string.home_choose_server)) and hasClickAction()).performClick()
+        // Home offers to choose a server once it has read that none is remembered.
+        val chooseServer = hasText(string(TimelineR.string.home_choose_server)) and hasClickAction()
+        waitFor(chooseServer, "Home's way to choose a server")
+        compose.onNode(chooseServer).performClick()
         compose.onNode(hasSetTextAction()).performTextInput(myUrl)
         compose.onNodeWithTextAndClick(string(SettingsR.string.choose_server_look_up))
         waitFor(hasText(string(SettingsR.string.choose_server_read)) and hasClickAction(), "the found server")
@@ -110,10 +114,12 @@ class PublicTimelineFlowTest {
                 "the content of the post warned as \"$warning\" shows before it is opened"
             }
 
-            compose.onNodeWithTextAndClick(string(DesignR.string.post_show_more))
-            compose.onNode(hasText(content, substring = true)).assertIsDisplayed()
+            // The warning's action lies below it, and the warning may be at the bottom edge of the list.
+            scrollToAndClick(string(DesignR.string.post_show_more))
+            waitFor(hasText(content, substring = true), "the content of the post warned as \"$warning\" once opened")
+            compose.onNode(hasText(content, substring = true)).performScrollTo().assertIsDisplayed()
 
-            compose.onNodeWithTextAndClick(string(DesignR.string.post_show_less))
+            scrollToAndClick(string(DesignR.string.post_show_less))
             compose.waitForIdle()
             check(compose.onAllNodes(hasText(content, substring = true)).fetchSemanticsNodes().isEmpty()) {
                 "the content of the post warned as \"$warning\" still shows once closed"
@@ -125,6 +131,12 @@ class PublicTimelineFlowTest {
         val shown = warning ?: newestAuthor
         waitFor(hasText(shown, substring = true), "after the activity was recreated, \"$shown\" of the Local timeline")
         compose.onNode(hasText(shown, substring = true)).assertIsDisplayed()
+    }
+
+    private fun scrollToAndClick(text: String) {
+        val action = hasText(text) and hasClickAction()
+        compose.onNode(hasScrollAction()).performScrollToNode(action)
+        compose.onNode(action).performClick()
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeTestRule.onNodeWithTextAndClick(text: String) {

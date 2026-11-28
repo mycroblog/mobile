@@ -54,13 +54,21 @@ class RootNavigationState(
     private val shown: List<TopLevelDestination>
         get() = TopLevelDestination.entries.filterNot { it in hidden }
 
+    /** The destinations the bar holds: the first [BAR_DESTINATIONS] of those shown, in their order. */
+    private val barItems: List<TopLevelDestination>
+        get() = shown.take(BAR_DESTINATIONS)
+
+    /** Whether the bar holds [this] destination, rather than the "More" list. */
+    private val TopLevelDestination.inBar: Boolean
+        get() = this in barItems
+
     /** The destinations the navigation shows as items: in the bar those that fit, in the rail all of them. */
     val items: List<TopLevelDestination>
-        get() = if (barLayout) shown.filter { it.inBar } else shown
+        get() = if (barLayout) barItems else shown
 
-    /** The destinations the "More" list opens. */
+    /** The destinations the "More" list opens: those shown after the bar's. */
     val moreItems: List<TopLevelDestination>
-        get() = shown.filterNot { it.inBar }
+        get() = shown.drop(BAR_DESTINATIONS)
 
     /** Whether the bar's "More" item is the selected one. */
     val moreSelected: Boolean
@@ -161,3 +169,6 @@ fun rememberRootNavigationState(
         RootNavigationState(stacks, moreStack, selected, showingMore, moreDestination, bar, hiddenState)
     }
 }
+
+/** How many destinations the navigation bar holds before its "More" item: five items at most (ADR-0010 §4). */
+private const val BAR_DESTINATIONS = 4

@@ -44,25 +44,23 @@ class SettingsViewModel @Inject constructor(readers: ReaderRepository) : ViewMod
 @Composable
 internal fun SettingsRoute(
     onChangeServer: () -> Unit,
-    onAddAccount: () -> Unit,
     onUp: (() -> Unit)?,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val server by viewModel.server.collectAsStateWithLifecycle()
-    SettingsScreen(server = server, onChangeServer = onChangeServer, onAddAccount = onAddAccount, onUp = onUp)
+    SettingsScreen(server = server, onChangeServer = onChangeServer, onUp = onUp)
 }
 
 /**
  * The settings: the server being read ([server], null before one is chosen) with the action that changes it
- * ([onChangeServer]), and the action that adds an account ([onAddAccount]). With [onUp], it has an Up button.
+ * ([onChangeServer]). With [onUp], it has an Up button. Accounts come with signing in (#44).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onAddAccount: () -> Unit,
+    server: String?,
+    onChangeServer: () -> Unit,
     modifier: Modifier = Modifier,
-    server: String? = null,
-    onChangeServer: () -> Unit = onAddAccount,
     onUp: (() -> Unit)? = null,
 ) {
     Scaffold(
@@ -102,11 +100,6 @@ fun SettingsScreen(
                             if (server != null) R.string.settings_change_server else R.string.settings_choose_server,
                         ),
                     )
-                }
-            }
-            item {
-                ListItem(modifier = Modifier.clickable(onClick = onAddAccount)) {
-                    Text(stringResource(R.string.settings_add_account))
                 }
             }
         }

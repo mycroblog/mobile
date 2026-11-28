@@ -32,3 +32,9 @@ sealed interface TimelineFailure {
 
 /** Where a reader was in a timeline: the post at the top of the screen, and how far past it (ADR-0008 §3). */
 data class TimelinePosition(val anchorId: String, val offset: Int)
+
+/**
+ * What the reader opened of a post: its content warning, and its sensitive media. Screen state that survives the
+ * process (ADR-0008 §1, §2).
+ */
+data class PostState(val contentOpen: Boolean = false, val mediaShown: Boolean = false)

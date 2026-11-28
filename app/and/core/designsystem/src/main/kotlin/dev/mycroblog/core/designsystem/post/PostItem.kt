@@ -217,7 +217,12 @@ private fun ContentWarning(warning: List<ContentRun>, post: TimelinePost, open: 
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            RunsText(runs = warning, emojis = post.post.emojis, style = MaterialTheme.typography.bodyLarge)
+            RunsText(
+                runs = warning,
+                emojis = post.post.emojis,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
         val toggle = stringResource(if (open) R.string.post_show_less else R.string.post_show_more)
         OutlinedButton(onClick = onToggle, modifier = Modifier.buttonSemantics(toggle, onToggle)) {
@@ -250,9 +255,11 @@ private fun UnshownContent(url: String?) {
 private fun Content(post: TimelinePost) {
     val colors = postTextColors()
     val text = remember(post.content, colors) { postAnnotatedString(post.content, colors) }
-    // Its own element for accessibility services, which offer its links.
+    // Its own element for accessibility services, which offer its links. It is as wide as the post, so that a
+    // paragraph aligns to the start of its own direction: a right-to-left paragraph to the right.
     Text(
         text = text,
+        modifier = Modifier.fillMaxWidth(),
         // Each paragraph takes the direction of its own words, whatever the layout's direction.
         style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Content),
         inlineContent = rememberEmojiContent(post.post.emojis),

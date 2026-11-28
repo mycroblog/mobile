@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.mycroblog.core.data.ReaderRepository
 import dev.mycroblog.core.data.TimelineRepository
 import dev.mycroblog.core.data.TimelineSync
+import dev.mycroblog.core.model.PostState
 import dev.mycroblog.core.model.PublicTimeline
 import dev.mycroblog.core.model.ReaderContext
 import dev.mycroblog.core.model.TimelineFailure
@@ -54,6 +55,16 @@ abstract class PublicTimelineViewModel(
                 val current = context ?: return@collectLatest
                 launch {
                     repository.posts(current, timeline).collect { posts -> state.update { it.copy(posts = posts) } }
+                }
+                launch {
+                    repository.postStates(current).collect { states ->
+                        state.update {
+                            it.copy(
+                                openContent = states.filterValues { s -> s.contentOpen }.keys,
+                                shownMedia = states.filterValues { s -> s.mediaShown }.keys,
+                            )
+                        }
+                    }
                 }
                 launch {
                     repository.state(current, timeline).collect { stored ->
@@ -109,9 +120,29 @@ abstract class PublicTimelineViewModel(
         viewModelScope.launch { repository.savePosition(readerContext, timeline, TimelinePosition(anchorId, offset)) }
     }
 
-    fun toggleContent(postId: String) = state.update { it.copy(openContent = it.openContent.toggle(postId)) }
+    /** Opens or closes the content warning of [postId]; the store keeps it across the end of the process. */
+    fun toggleContent(postId: String) {
+        val current = state.value
+        save(postId, PostState(postId !in current.openContent, postId in current.shownMedia))
+    }
 
-    fun toggleMedia(postId: String) = state.update { it.copy(shownMedia = it.shownMedia.toggle(postId)) }
+    /** Shows or hides the sensitive media of [postId]; the store keeps it across the end of the process. */
+    fun toggleMedia(postId: String) {
+        val current = state.value
+        save(postId, PostState(postId in current.openContent, postId !in current.shownMedia))
+    }
+
+    private fun save(postId: String, postState: PostState) {
+        val readerContext = context ?: return
+        // Shown at once; the store's answer confirms it.
+        state.update {
+            it.copy(
+                openContent = it.openContent.with(postId, postState.contentOpen),
+                shownMedia = it.shownMedia.with(postId, postState.mediaShown),
+            )
+        }
+        viewModelScope.launch { repository.setPostState(readerContext, postId, postState) }
+    }
 
     private fun isBlocked(): Boolean = now() < blockedUntil
 
@@ -132,7 +163,7 @@ abstract class PublicTimelineViewModel(
     }
 }
 
-private fun Set<String>.toggle(id: String): Set<String> = if (id in this) this - id else this + id
+private fun Set<String>.with(id: String, present: Boolean): Set<String> = if (present) this + id else this - id
 
 /** The local timeline's screen state. */
 @HiltViewModel
