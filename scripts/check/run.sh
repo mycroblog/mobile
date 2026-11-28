@@ -837,7 +837,7 @@ check_android_launch() {
 # last against the local my at MY_URL (task android:test starts it with task my:up).
 check_android_test() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}"
-  local url="${MY_URL:-}" tasks=(:core:model:test :core:api:test :core:data:testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
+  local url="${MY_URL:-}" tasks=(:core:model:test :core:api:test testDebugUnitTest :core:api:integrationTest :core:data:integrationTest)
   [[ -n "$url" ]] || url="$("$ROOT/scripts/my.sh" url)"
   MY_URL="$url" android_gradle "${tasks[@]}" --continue ||
     fail "the Android tests failed: fix what each failed test says above."
