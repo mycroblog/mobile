@@ -80,6 +80,8 @@ data class PostRecord(
     val counts: PostCounts,
     /** The custom emoji of the content and the content warning. */
     val emojis: List<CustomEmoji>,
+    /** Whether the post has a part this app does not show yet: a poll, a quote, an article or an event board. */
+    val hasUnshownContent: Boolean = false,
 )
 
 /**
@@ -100,4 +102,10 @@ data class TimelinePost(val id: String, val boostedBy: Account?, val author: Acc
     val edited: Boolean get() = post.edited
     val counts: PostCounts get() = post.counts
     val createdAt: Long get() = post.createdAt
+
+    /** Whether the post has a part this app does not show yet, which the reader can open on the server ([url]). */
+    val hasUnshownContent: Boolean get() = post.hasUnshownContent
+
+    /** The post's page on its server. */
+    val url: String? get() = post.url
 }

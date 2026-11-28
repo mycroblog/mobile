@@ -17,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -37,7 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mycroblog.core.designsystem.NavigateUpButton
@@ -96,7 +99,7 @@ fun PublicTimelineScreen(
                         uiState.server?.let {
                             Text(
                                 it.host,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -222,7 +225,11 @@ private fun Footer(uiState: PublicTimelineUiState, onRetryOlder: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             ) {
-                Text(failureMessage(failure), textAlign = TextAlign.Center)
+                Text(
+                    failureMessage(failure),
+                    textAlign = TextAlign.Center,
+                    style = LocalTextStyle.current.merge(Sentence),
+                )
                 OutlinedButton(onClick = onRetryOlder, enabled = !uiState.rateLimited) {
                     Text(stringResource(R.string.timeline_retry))
                 }
@@ -246,7 +253,11 @@ private fun Banner(message: String, enabled: Boolean, onRetry: () -> Unit) {
             modifier = Modifier.padding(16.dp).semantics { liveRegion = LiveRegionMode.Polite },
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(message, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(
+                message,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = LocalTextStyle.current.merge(Sentence),
+            )
             OutlinedButton(onClick = onRetry, enabled = enabled) { Text(stringResource(R.string.timeline_retry)) }
         }
     }
@@ -269,7 +280,7 @@ private fun FullMessage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        Text(message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(message, style = MaterialTheme.typography.bodyLarge.merge(Sentence), textAlign = TextAlign.Center)
         if (action != null) Button(onClick = onAction, enabled = actionEnabled) { Text(action) }
     }
 }
@@ -282,6 +293,9 @@ private fun failureMessage(failure: TimelineFailure): String = when (failure) {
     is TimelineFailure.RateLimited -> stringResource(R.string.timeline_rate_limited)
     TimelineFailure.NotOffered -> stringResource(R.string.timeline_not_offered)
 }
+
+/** A message takes the direction of its own words, whatever the layout's direction. */
+private val Sentence = TextStyle(textDirection = TextDirection.Content)
 
 private const val SAVE_DELAY_MILLIS = 500L
 private const val OLDER_THRESHOLD = 5

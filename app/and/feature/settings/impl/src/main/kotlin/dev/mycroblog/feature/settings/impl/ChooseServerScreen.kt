@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -209,6 +211,8 @@ private fun AddressField(
             null
         },
         isError = invalid,
+        // An address reads left to right in every language.
+        textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr),
         lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.None,
@@ -231,8 +235,8 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit, onRead:
         ) {
             CircularProgressIndicator(Modifier.size(24.dp))
             Text(
-                stringResource(R.string.choose_server_looking_up, lookup.host),
-                style = MaterialTheme.typography.bodyLarge,
+                stringResource(R.string.choose_server_looking_up, lookup.host.isolated()),
+                style = MaterialTheme.typography.bodyLarge.copy(textDirection = SentenceDirection),
             )
         }
 
@@ -245,7 +249,7 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit, onRead:
             lookup.instance.shortDescription?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
             Text(
                 text = lookup.host,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Ltr),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             val read = stringResource(R.string.choose_server_read)
@@ -259,11 +263,10 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit, onRead:
 
         is ServerLookupState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = stringResource(R.string.choose_server_could_not_reach, lookup.host),
-                style = MaterialTheme.typography.titleMedium,
+                text = lookup.failure.message(lookup.host.isolated()),
+                style = MaterialTheme.typography.bodyLarge.copy(textDirection = SentenceDirection),
                 color = MaterialTheme.colorScheme.error,
             )
-            Text(lookup.failure.reason(), style = MaterialTheme.typography.bodyMedium)
             val tryAgain = stringResource(R.string.choose_server_try_again)
             OutlinedButton(
                 onClick = onRetry,
@@ -275,12 +278,22 @@ private fun LookupResult(lookup: ServerLookupState, onRetry: () -> Unit, onRead:
     }
 }
 
+/** The one message of a failed lookup of [host], which says what happened. */
 @Composable
-private fun InstanceLookupFailure.reason(): String = when (this) {
-    InstanceLookupFailure.NoAnswer -> stringResource(R.string.choose_server_no_answer)
-    InstanceLookupFailure.NotMycroblog -> stringResource(R.string.choose_server_not_mycroblog)
-    is InstanceLookupFailure.Problem -> title
+private fun InstanceLookupFailure.message(host: String): String = when (this) {
+    InstanceLookupFailure.NoAnswer -> stringResource(R.string.choose_server_no_answer, host)
+    InstanceLookupFailure.NotMycroblog -> stringResource(R.string.choose_server_not_mycroblog, host)
+    is InstanceLookupFailure.Problem -> stringResource(R.string.choose_server_problem, host, title)
 }
+
+/**
+ * The host as a left-to-right isolate (LRI ... PDI) in the sentence it is put in: it reads left to right in any
+ * language, and neither moves the sentence's punctuation nor decides the sentence's direction.
+ */
+private fun String.isolated(): String = "\u2066$this\u2069"
+
+/** A sentence takes the direction of its own words, whatever the layout's direction. */
+private val SentenceDirection = TextDirection.Content
 
 /**
  * One accessibility node for a button with a text [label]: its role, label, state and action on the button itself,

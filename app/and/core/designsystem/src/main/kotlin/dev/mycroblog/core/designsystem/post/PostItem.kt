@@ -17,10 +17,12 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -29,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -69,8 +72,14 @@ fun PostItem(
         if (warning != null) ContentWarning(warning, post, contentOpen, onToggleContent)
         if (warning == null || contentOpen) {
             if (post.content.isNotEmpty()) Content(post)
+            if (post.hasUnshownContent) UnshownContent(post.url)
             if (post.media.isNotEmpty()) {
-                MediaGrid(post.media, covered = post.post.sensitive && !mediaShown, onToggle = onToggleMedia)
+                MediaGrid(
+                    media = post.media,
+                    sensitive = post.post.sensitive,
+                    covered = post.post.sensitive && !mediaShown,
+                    onToggle = onToggleMedia,
+                )
             }
             if (post.omittedMediaCount > 0) {
                 Text(
@@ -195,9 +204,40 @@ private val AvatarSize = 40.dp
 @Composable
 private fun ContentWarning(warning: List<ContentRun>, post: TimelinePost, open: Boolean, onToggle: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        RunsText(runs = warning, emojis = post.post.emojis, style = MaterialTheme.typography.bodyLarge)
+        // The indicator and the warning are one element, read as "Content warning" and the warning's text.
+        Row(
+            modifier = Modifier.semantics(mergeDescendants = true) {},
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.WarningAmber,
+                contentDescription = stringResource(R.string.post_content_warning),
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            RunsText(runs = warning, emojis = post.post.emojis, style = MaterialTheme.typography.bodyLarge)
+        }
         OutlinedButton(onClick = onToggle) {
             Text(stringResource(if (open) R.string.post_show_less else R.string.post_show_more))
+        }
+    }
+}
+
+/** The line of a post that has a part this app does not show yet, with the action that opens the post's [url]. */
+@Composable
+private fun UnshownContent(url: String?) {
+    val uriHandler = LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(R.string.post_unshown_content),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (url != null) {
+            TextButton(onClick = { uriHandler.openUri(url) }) {
+                Text(stringResource(R.string.post_open_on_server))
+            }
         }
     }
 }

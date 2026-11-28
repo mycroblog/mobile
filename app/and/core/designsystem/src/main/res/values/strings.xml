@@ -9,7 +9,10 @@
     <string name="post_show_more">Show post</string>
     <string name="post_show_less">Hide post</string>
     <string name="post_show_media">Show sensitive media</string>
-    <string name="post_hide_media">Hide media</string>
+    <string name="post_hide_media">Hide sensitive media</string>
+    <string name="post_content_warning">Content warning</string>
+    <string name="post_unshown_content">This post has content this app does not show yet.</string>
+    <string name="post_open_on_server">Open the post</string>
     <string name="post_media_image">Image</string>
     <string name="post_media_gifv">Animated image</string>
     <string name="post_media_video">Video</string>

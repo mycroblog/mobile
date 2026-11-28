@@ -39,11 +39,12 @@ import dev.mycroblog.core.model.Media
 import dev.mycroblog.core.model.MediaType
 
 /**
- * The previews of a post's media: one at its own shape, more two by two. While [covered], each shows only its
- * BlurHash, and one button shows them all ([onToggle]); once shown, a button hides them again.
+ * The previews of a post's media: one at its own shape, more two by two, as wide as the post and as high as their
+ * shape makes them. While [covered], each shows only its BlurHash, and one button shows them all ([onToggle]); once
+ * shown, [sensitive] media have a button that hides them again.
  */
 @Composable
-internal fun MediaGrid(media: List<Media>, covered: Boolean, onToggle: () -> Unit) {
+internal fun MediaGrid(media: List<Media>, sensitive: Boolean, covered: Boolean, onToggle: () -> Unit) {
     Box {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (media.size == 1) {
@@ -62,7 +63,7 @@ internal fun MediaGrid(media: List<Media>, covered: Boolean, onToggle: () -> Uni
             FilledTonalButton(onClick = onToggle, modifier = Modifier.align(Alignment.Center)) {
                 Text(stringResource(R.string.post_show_media))
             }
-        } else {
+        } else if (sensitive) {
             val hide = stringResource(R.string.post_hide_media)
             FilledTonalIconButton(
                 onClick = onToggle,

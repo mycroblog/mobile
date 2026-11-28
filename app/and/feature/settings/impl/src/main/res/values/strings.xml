@@ -9,9 +9,11 @@
     <string name="choose_server_look_up">Look up</string>
     <string name="choose_server_invalid_address">Enter a server address such as example.social.</string>
     <string name="choose_server_looking_up">Looking up %1$s…</string>
-    <string name="choose_server_could_not_reach">Could not reach %1$s.</string>
-    <string name="choose_server_no_answer">The server did not answer.</string>
-    <string name="choose_server_not_mycroblog">This is not a mycroblog server.</string>
+    <!-- %1$s is the host that was looked up. -->
+    <string name="choose_server_no_answer">Could not reach %1$s. Check the address and your connection.</string>
+    <string name="choose_server_not_mycroblog">%1$s is not a mycroblog server.</string>
+    <!-- %1$s is the host, %2$s the reason the server gave. -->
+    <string name="choose_server_problem">%1$s could not be read: %2$s</string>
     <string name="choose_server_try_again">Try again</string>
     <string name="choose_server_read">Read this server</string>
 </resources>

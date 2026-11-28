@@ -79,6 +79,7 @@ private fun Status.toPostRecord(): PostRecord {
         edited = editedAt != null,
         counts = PostCounts(replies = repliesCount, boosts = boostsCount, favourites = favouritesCount),
         emojis = emojis,
+        hasUnshownContent = poll != null || quote != null || article != null || eventBoard != null,
     )
 }
 
