@@ -85,7 +85,7 @@ struct RelaunchTests {
         let store = try TimelineStore.onDisk(at: directory.store)
         let snapshot = try await store.snapshot(of: .local, in: .test)
 
-        #expect(snapshot.items.map(\.id) == Array(ids("p", 100).prefix(60)))
+        #expect(snapshot.items.map(\.id) == Array(ids("p", 100).prefix(20)))
         #expect(snapshot.items.first?.post.content.plainText == "p0100")
         #expect(snapshot.items.first?.author == StubServer.author)
         #expect(snapshot.wasLoaded)
@@ -110,9 +110,9 @@ struct RelaunchTests {
         let sync = TimelineSync(store: store, source: offline)
         await #expect(throws: TimelineLoadError.unreachable) { try await sync.refresh(.local, in: .test) }
 
-        #expect(try await store.entryIDs(of: .local, in: .test) == Array(ids("p", 100).prefix(50)))
+        #expect(try await store.entryIDs(of: .local, in: .test) == Array(ids("p", 100).prefix(10)))
         offline.set(ids("p", 100))
         try await sync.loadOlder(.local, in: .test)
-        #expect(offline.cursors.last == .some(StubServer.cursor(after: "p0051")))
+        #expect(offline.cursors.last == .some(StubServer.cursor(after: "p0091")))
     }
 }

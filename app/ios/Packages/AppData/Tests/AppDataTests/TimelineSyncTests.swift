@@ -240,6 +240,8 @@ struct TimelineSyncTests {
         let sync = TimelineSync(store: store, source: big)
         big.set(ids("p", 3000))
         try await sync.refresh(.local, in: .test)
+        try await sync.loadOlder(.local, in: .test)
+        try await sync.loadOlder(.local, in: .test)
         let last = try #require(try await entries().last)
         #expect(try await entries().count > 1000)
         #expect(try await snapshot().hasOlder)

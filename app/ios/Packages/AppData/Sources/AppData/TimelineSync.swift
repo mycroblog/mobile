@@ -39,9 +39,12 @@ public final class TimelineSync: Sendable {
 
     /// Reads the newest page of `timeline`, and the older ones until they meet the stored list, up to
     /// `maxPagesToMeet` pages. When they meet, the new entries go above the stored ones; when they do not, the
-    /// stored list is replaced by what was read. Used when a timeline is opened and when it is pulled to refresh.
+    /// stored list is replaced by what was read. With nothing stored there is nothing to meet, so only the newest page
+    /// is read; older ones follow as the reader scrolls. Used when a timeline is opened and when it is pulled to
+    /// refresh.
     @concurrent public func refresh(_ timeline: PublicTimeline, in context: ReaderContext) async throws {
         let stored = try await store.entryIDs(of: timeline, in: context)
+        let maxPages = stored.isEmpty ? 1 : Self.maxPagesToMeet
         let storedPositions = Dictionary(stored.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         var pages: [PostPage] = []
         var newer: [String] = []
@@ -49,7 +52,7 @@ public final class TimelineSync: Sendable {
         var metAt: Int?
         var cursor: String?
         var reachedEnd = false
-        reading: for _ in 0..<Self.maxPagesToMeet {
+        reading: for _ in 0..<maxPages {
             let page = try await source.page(of: timeline, in: context, cursor: cursor)
             pages.append(page)
             for id in page.entryIDs {
