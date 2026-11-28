@@ -3,7 +3,6 @@ package dev.mycroblog.core.designsystem.post
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -287,13 +286,5 @@ private fun Count(icon: ImageVector, count: Int) {
         val color = MaterialTheme.colorScheme.onSurfaceVariant
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = color)
         Text(count.toString(), style = MaterialTheme.typography.labelMedium, color = color)
-    }
-}
-
-/** The box behind content that has not loaded, or that has nothing to show. */
-@Composable
-internal fun EmptyBox(modifier: Modifier = Modifier, content: @Composable () -> Unit = {}) {
-    Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-        content()
     }
 }

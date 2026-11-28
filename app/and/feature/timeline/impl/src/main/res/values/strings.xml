@@ -6,6 +6,9 @@
 
     <string name="home_choose_server_message">Choose a server to read the posts it shares with everyone.</string>
     <string name="home_choose_server">Choose a server</string>
+    <string name="home_signed_out_message">Once you sign in, Home shows the posts of the accounts you follow. Signing in comes in a later version; until then, read the timelines this server shares with everyone.</string>
+    <string name="home_open_local">Read the Local timeline</string>
+    <string name="home_open_federated">Read the Federated timeline</string>
 
     <string name="timeline_retry">Try again</string>
     <string name="timeline_empty">No posts yet.</string>

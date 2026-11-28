@@ -106,6 +106,11 @@ class RootNavigationState(
         stacks.getValue(selected).add(key)
     }
 
+    /** Shows the top-level destination whose root is [key]; any other key opens over the screen shown. */
+    fun selectKey(key: NavKey) {
+        TopLevelDestination.entries.firstOrNull { it.key == key }?.let(::select) ?: navigate(key)
+    }
+
     /** Shows Home at its root, as after the reader chose a server. */
     fun showHome() {
         val stack = stacks.getValue(selected)

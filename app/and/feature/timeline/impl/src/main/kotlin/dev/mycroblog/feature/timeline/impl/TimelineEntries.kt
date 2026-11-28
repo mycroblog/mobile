@@ -11,11 +11,20 @@ import dev.mycroblog.feature.timeline.api.LocalTimelineKey
 
 /**
  * The destinations of the timeline feature, for the app's NavDisplay. [navigateUp] says what the Up button
- * of the screen of a key does, or null when it has none, and [navigate] opens a key over the shown destination.
+ * of the screen of a key does, or null when it has none, [navigate] opens a key over the shown destination, and
+ * [openDestination] shows the top-level destination of a key, such as the local timeline's.
  */
-fun EntryProviderScope<NavKey>.timelineEntries(navigateUp: (NavKey) -> (() -> Unit)?, navigate: (NavKey) -> Unit) {
+fun EntryProviderScope<NavKey>.timelineEntries(
+    navigateUp: (NavKey) -> (() -> Unit)?,
+    navigate: (NavKey) -> Unit,
+    openDestination: (NavKey) -> Unit = navigate,
+) {
     entry<HomeTimelineKey> { key ->
-        HomeRoute(onChooseServer = { navigate(ChooseServerKey) }, onUp = navigateUp(key))
+        HomeRoute(
+            onChooseServer = { navigate(ChooseServerKey) },
+            onOpenTimeline = openDestination,
+            onUp = navigateUp(key),
+        )
     }
     entry<LocalTimelineKey> { key ->
         PublicTimelineRoute(

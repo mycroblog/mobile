@@ -1,6 +1,7 @@
 package dev.mycroblog.core.designsystem.post
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.mycroblog.core.designsystem.R
@@ -102,45 +106,47 @@ private fun MediaPreview(media: Media, covered: Boolean, modifier: Modifier) {
                 role = Role.Image
             },
     ) {
-        when {
-            covered -> if (blurhash != null) {
-                Image(blurhash, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            } else {
-                EmptyBox(Modifier.fillMaxSize())
-            }
-
-            media.preview != null -> {
-                var failed by remember(media.preview) { mutableStateOf(false) }
+        // Beneath everything, the BlurHash, or the placeholder of the kind: what shows while the preview loads, when
+        // it fails, and while the medium is covered.
+        if (blurhash != null) {
+            Image(blurhash, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            MediaPlaceholder(media.type, kind, description = null)
+        }
+        if (!covered) {
+            var failed by remember(media.preview) { mutableStateOf(media.preview == null) }
+            if (media.preview != null) {
                 AsyncImage(
                     model = media.preview,
                     contentDescription = null,
-                    placeholder = blurhash,
-                    error = blurhash,
                     onError = { failed = true },
+                    onSuccess = { failed = false },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
-                // A preview that cannot load shows its BlurHash, or a placeholder that names its kind.
-                if (failed && blurhash == null) MediaPlaceholder(media.type, kind)
-                if (media.type == MediaType.VIDEO || media.type == MediaType.GIFV) {
-                    Icon(
-                        Icons.Filled.PlayCircle,
-                        contentDescription = null,
-                        modifier = Modifier.align(Alignment.Center).size(48.dp),
-                        tint = MaterialTheme.colorScheme.inverseOnSurface,
-                    )
-                }
             }
-
-            else -> MediaPlaceholder(media.type, kind)
+            // A medium with no picture names its kind and shows its description as text.
+            if (failed) MediaPlaceholder(media.type, kind, media.description, scrim = blurhash != null)
+            if (!failed && (media.type == MediaType.VIDEO || media.type == MediaType.GIFV)) {
+                Icon(
+                    Icons.Filled.PlayCircle,
+                    contentDescription = null,
+                    modifier = Modifier.align(Alignment.Center).size(48.dp),
+                    tint = MaterialTheme.colorScheme.inverseOnSurface,
+                )
+            }
         }
     }
 }
 
-/** The box of a medium with no picture to show: an icon and the name of its [kind]. */
+/**
+ * The box of a medium with no picture to show: an icon, the name of its [kind], and its [description] when it has one.
+ * Over a BlurHash ([scrim]) it is translucent.
+ */
 @Composable
-private fun MediaPlaceholder(type: MediaType, kind: String) {
-    EmptyBox(Modifier.fillMaxSize()) {
+private fun MediaPlaceholder(type: MediaType, kind: String, description: String?, scrim: Boolean = false) {
+    val background = MaterialTheme.colorScheme.surfaceVariant.let { if (scrim) it.copy(alpha = SCRIM_ALPHA) else it }
+    Box(Modifier.fillMaxSize().background(background).padding(8.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(
                 when (type) {
@@ -154,9 +160,22 @@ private fun MediaPlaceholder(type: MediaType, kind: String) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(kind, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = DESCRIPTION_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
+
+private const val SCRIM_ALPHA = 0.85f
+private const val DESCRIPTION_LINES = 3
 
 /** What accessibility services say of a medium: its kind, and its description when it has one. */
 @Composable

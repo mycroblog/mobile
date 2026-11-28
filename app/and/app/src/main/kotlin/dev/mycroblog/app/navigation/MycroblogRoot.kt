@@ -87,7 +87,7 @@ fun MycroblogRoot(viewModel: RootViewModel = hiltViewModel()) {
     LaunchedEffect(offered != null, hidden) { if (offered != null) state.leaveHidden() }
 
     val entryProvider = entryProvider<NavKey> {
-        timelineEntries(state::navigateUp, state::navigate)
+        timelineEntries(state::navigateUp, state::navigate, state::selectKey)
         notificationsEntries(state::navigateUp)
         searchEntries(state::navigateUp)
         messagesEntries(state::navigateUp)
@@ -192,7 +192,8 @@ private fun RootNavigationRail(state: RootNavigationState) {
                 )
                 .widthIn(min = RailWidth)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 4.dp)
+                // A label wider than the rail at a large font scale keeps a margin from the screen's edge.
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
