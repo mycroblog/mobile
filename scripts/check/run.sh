@@ -859,9 +859,14 @@ check_android_test_flow() {
   need_android_sdk "${ANDROID_SDK_PACKAGES[@]}" "$ANDROID_IMAGE"
   android_gradle :app:assembleDebug :app:assembleDebugAndroidTest ||
     fail 'the Android build failed: fix what Gradle says above (cd app/and && ./gradlew :app:assembleDebugAndroidTest), then check again.'
+  local url port
+  url="$("$ROOT/scripts/my.sh" url)" || fail "no local my answers: start it with task my:up (task android:test-flow does)."
+  port="${url##*:}"
   take_device "the Android UI-flow tests"
   boot_android phone pixel_9
-  ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest ||
+  # The emulator reaches the host's loopback, where the local my listens, at 10.0.2.2.
+  ANDROID_SERIAL="emulator-$ANDROID_CONSOLE_PORT" android_gradle :app:connectedDebugAndroidTest \
+    "-Pandroid.testInstrumentationRunnerArguments.myUrl=http://10.0.2.2:${port%%/*}" ||
     fail "the Android UI-flow tests failed on drive-phone: fix what each failed test says above; the report is app/and/app/build/reports/androidTests/connected/debug/index.html."
   printf 'check: the UI-flow tests pass on drive-phone (pixel_9)\n'
   release_device
