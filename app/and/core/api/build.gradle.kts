@@ -31,6 +31,10 @@ testing {
     suites {
         named<JvmTestSuite>("test") {
             useJUnit(libs.versions.junit)
+            dependencies {
+                // The tests of the encoded values read the request a client sends from an engine that answers it.
+                implementation(libs.ktor.client.mock)
+            }
             targets.configureEach {
                 testTask.configure {
                     inputs.dir(fixtures).withPropertyName("fixtures").withPathSensitivity(PathSensitivity.RELATIVE)
