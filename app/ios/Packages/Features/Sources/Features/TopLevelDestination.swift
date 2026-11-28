@@ -43,6 +43,14 @@ public enum TopLevelDestination: String, CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// The destination of the server-provided timeline `timeline`.
+    init(publicTimeline timeline: PublicTimeline) {
+        switch timeline {
+        case .local: self = .localTimeline
+        case .federated: self = .federatedTimeline
+        }
+    }
+
     /// The server-provided timeline the destination shows, if it is one.
     var publicTimeline: PublicTimeline? {
         switch self {

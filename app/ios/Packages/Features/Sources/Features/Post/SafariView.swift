@@ -1,61 +1,39 @@
 import SafariServices
 import SwiftUI
-
-/// A web page in the in-app browser. Its Done button calls `finish`, which dismisses it.
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    let finish: () -> Void
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.delegate = context.coordinator
-        return controller
-    }
-
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {
-        context.coordinator.finish = finish
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(finish: finish)
-    }
-
-    final class Coordinator: NSObject, SFSafariViewControllerDelegate {
-        var finish: () -> Void
-
-        init(finish: @escaping () -> Void) {
-            self.finish = finish
-        }
-
-        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-            finish()
-        }
-    }
-}
-
-/// A URL that the in-app browser shows.
-struct BrowsedURL: Identifiable, Hashable {
-    let url: URL
-    var id: URL { url }
-}
+import UIKit
 
 extension View {
-    /// Opens the http and https links of the text below in the in-app browser, presented full screen; other links go
-    /// to the system.
-    func opensLinksInAppBrowser(_ browsed: Binding<BrowsedURL?>) -> some View {
+    /// Opens the http and https links of the text below in the in-app browser; other links go to the system.
+    ///
+    /// The browser is presented modally from the view controller on top of the window, as Apple asks for
+    /// SFSafariViewController, so that the SwiftUI screens under it are left as they are: a list keeps its place.
+    func opensLinksInAppBrowser() -> some View {
         environment(
             \.openURL,
             OpenURLAction { url in
-                guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+                guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+                    let presenter = UIApplication.shared.topViewController
+                else {
                     return .systemAction
                 }
-                browsed.wrappedValue = BrowsedURL(url: url)
+                presenter.present(SFSafariViewController(url: url), animated: true)
                 return .handled
             }
         )
-        .fullScreenCover(item: browsed) { page in
-            SafariView(url: page.url) { browsed.wrappedValue = nil }
-                .ignoresSafeArea()
+    }
+}
+
+extension UIApplication {
+    /// The view controller on top of the key window of the foreground scene, which presents the in-app browser.
+    fileprivate var topViewController: UIViewController? {
+        let scenes = connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene =
+            scenes.first { $0.activationState == .foregroundActive }
+            ?? scenes.first { $0.activationState == .foregroundInactive }
+        var top = scene?.keyWindow?.rootViewController
+        while let presented = top?.presentedViewController, !presented.isBeingDismissed {
+            top = presented
         }
+        return top
     }
 }

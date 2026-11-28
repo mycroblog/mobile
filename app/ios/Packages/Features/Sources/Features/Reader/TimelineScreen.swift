@@ -38,7 +38,7 @@ struct TimelineScreen: View {
         switch model.status {
         case .failed(let error, let retryAt):
             ScrollView {
-                FailureView(error: error, retryAt: retryAt, retry: retry)
+                FailureView(error: error, host: model.context.host, retryAt: retryAt, retry: retry)
                     .containerRelativeFrame(.vertical)
             }
             .refreshable { await model.refresh() }
@@ -61,7 +61,7 @@ struct TimelineScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if case .failed(let error, let retryAt) = model.status {
-                    FailureBanner(error: error, retryAt: retryAt, retry: retry)
+                    FailureBanner(error: error, host: model.context.host, retryAt: retryAt, retry: retry)
                 }
                 ForEach(model.items) { item in
                     PostView(
@@ -79,10 +79,19 @@ struct TimelineScreen: View {
                     } action: { minY in
                         geometry.rowTops[item.id] = minY
                     }
+                    // A row the lazy stack let go of has no position any more.
+                    .onDisappear { geometry.rowTops[item.id] = nil }
                     Divider()
                 }
                 if model.hasOlder {
                     olderFooter
+                } else {
+                    Text("You have reached the oldest post.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding()
                 }
             }
             .scrollTargetLayout()
@@ -97,15 +106,27 @@ struct TimelineScreen: View {
         .onScrollGeometryChange(for: CGFloat.self) { scroll in
             scroll.containerSize.height - scroll.contentInsets.top - scroll.contentInsets.bottom
         } action: { _, height in
+            guard height > 0 else { return }
             visibleHeight = height
+        }
+        .onScrollGeometryChange(for: CGSize.self) { scroll in
+            scroll.containerSize
+        } action: { old, new in
+            // A rotation, a new window size or a bar that comes and goes lays the rows out again: keep the reader's
+            // post where it was.
+            if old != new, new.width > 0, new.height > 0 { keepReadingPositionSoon() }
         }
         .environment(\.visibleHeight, visibleHeight)
         .onScrollPhaseChange { _, phase in
-            if phase == .idle { savePosition() }
+            if phase == .idle { settle() }
         }
         .refreshable { await model.refresh() }
-        .onAppear(perform: restorePosition)
+        .onAppear {
+            // Coming back from another destination keeps the reader's post.
+            if didRestore { keepReadingPositionSoon() } else { restorePosition() }
+        }
         .onChange(of: model.items.first?.id) { restorePosition() }
+
         .onDisappear(perform: savePosition)
     }
 
@@ -150,34 +171,72 @@ struct TimelineScreen: View {
         guard !didRestore, model.hasReadStore, !model.items.isEmpty else { return }
         didRestore = true
         guard let saved = model.savedPosition, model.items.contains(where: { $0.id == saved.anchorID }) else { return }
-        position.scrollTo(id: saved.anchorID, anchor: .top)
+        geometry.anchor = saved
+        scroll(to: saved)
+    }
+
+    /// When scrolling stops: saves the position, and drops the target of the last scroll the screen asked for, so that
+    /// the list showing again does not go back to that old target.
+    private func settle() {
+        savePosition()
+        if geometry.isCorrecting == false {
+            position = ScrollPosition(idType: String.self)
+        }
+    }
+
+    /// Scrolls back to the post the reader was at once the list is shown again and laid out.
+    private func keepReadingPositionSoon() {
         Task {
-            // Once the rows are laid out, measure where the anchor landed and move by what is left, so that its top is
-            // the saved offset above the top of what the reader sees.
             try? await Task.sleep(for: .milliseconds(150))
-            guard let top = geometry.rowTops[saved.anchorID] else { return }
-            let correction = (top - geometry.insetTop) + saved.offset
-            if abs(correction) >= 1 {
+            keepReadingPosition()
+        }
+    }
+
+    /// Scrolls back to the post the reader was at, after the rows were laid out again.
+    private func keepReadingPosition() {
+        guard didRestore, let anchor = geometry.anchor, model.items.contains(where: { $0.id == anchor.anchorID })
+        else { return }
+        scroll(to: anchor)
+    }
+
+    /// Scrolls to the top of `anchor`'s post, then, once the rows are laid out, measures where it landed and moves by
+    /// what is left, a few times, so that its top is the saved offset above the top of what the reader sees.
+    private func scroll(to anchor: ReadingPosition) {
+        geometry.generation += 1
+        let generation = geometry.generation
+        geometry.isCorrecting = true
+        position.scrollTo(id: anchor.anchorID, anchor: .top)
+        Task {
+            defer { if generation == geometry.generation { geometry.isCorrecting = false } }
+            for _ in 0..<3 {
+                try? await Task.sleep(for: .milliseconds(120))
+                guard generation == geometry.generation, let top = geometry.rowTops[anchor.anchorID] else { return }
+                let correction = (top - geometry.insetTop) + anchor.offset
+                guard abs(correction) >= 1 else { return }
                 position.scrollTo(y: max(0, geometry.contentOffset + correction))
             }
         }
     }
 
-    /// Saves the entry at the top and how far it is scrolled past, or forgets the position at the newest post.
+    /// Saves the post at the top and how far it is scrolled past, or forgets the position at the newest post.
     private func savePosition() {
-        guard didRestore, let anchor = position.viewID(type: String.self) ?? topRowID else { return }
+        // With no row laid out, as when a screen covers the list, there is nothing to measure: keep what was saved.
+        guard didRestore, !geometry.rowTops.isEmpty, let anchor = topRowID else { return }
         // A row's top is measured from the top of the scroll view, under the bars; the reader sees from the inset.
         let offset = max(0, geometry.insetTop - (geometry.rowTops[anchor] ?? geometry.insetTop))
+        let saved = ReadingPosition(anchorID: anchor, offset: offset)
+        geometry.anchor = saved
         if anchor == model.items.first?.id, offset == 0 {
             model.save(position: nil)
         } else {
-            model.save(position: ReadingPosition(anchorID: anchor, offset: offset))
+            model.save(position: saved)
         }
     }
 
-    /// The row whose top is the last one at or above the top of what the reader sees.
+    /// The post at the top of what the reader sees: of the rows laid out, the lowest whose top is at or above it.
     private var topRowID: String? {
-        model.items.last { (geometry.rowTops[$0.id] ?? .infinity) <= geometry.insetTop }?.id ?? model.items.first?.id
+        let above = geometry.rowTops.filter { $0.value <= geometry.insetTop + 0.5 }
+        return above.max { $0.value < $1.value }?.key ?? model.items.first?.id
     }
 }
 
@@ -186,6 +245,12 @@ private final class RowGeometry {
     var rowTops: [String: CGFloat] = [:]
     var contentOffset: CGFloat = 0
     var insetTop: CGFloat = 0
+    /// The post the reader was at when the list last stopped, which a new layout scrolls back to.
+    var anchor: ReadingPosition?
+    /// Counts the scrolls to a post, so that a newer one stops the corrections of an older one.
+    var generation = 0
+    /// Whether a scroll to a post is still being corrected.
+    var isCorrecting = false
 }
 
 /// How far a scroll view is scrolled from its top, and the inset of its top under the bars.
@@ -197,6 +262,8 @@ private struct ScrollOffset: Equatable {
 /// What a failure says, and its retry, which waits for the rate limit.
 private struct FailureView: View {
     let error: TimelineLoadError
+    /// The host of the server, which the failure names.
+    let host: String
     let retryAt: Date?
     let retry: () -> Void
 
@@ -204,7 +271,7 @@ private struct FailureView: View {
         ContentUnavailableView {
             Label(error.title, systemImage: "exclamationmark.triangle")
         } description: {
-            Text(error.message)
+            Text(error.message(host: host))
         } actions: {
             RetryButton(retryAt: retryAt, retry: retry)
                 .buttonStyle(.borderedProminent)
@@ -215,6 +282,8 @@ private struct FailureView: View {
 /// A failure above posts that are already shown.
 private struct FailureBanner: View {
     let error: TimelineLoadError
+    /// The host of the server, which the failure names.
+    let host: String
     let retryAt: Date?
     let retry: () -> Void
 
@@ -222,7 +291,7 @@ private struct FailureBanner: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(error.title)
                 .font(.headline)
-            Text(error.message)
+            Text(error.message(host: host))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             RetryButton(retryAt: retryAt, retry: retry)
@@ -265,9 +334,9 @@ extension TimelineLoadError {
         }
     }
 
-    fileprivate var message: String {
+    fileprivate func message(host: String) -> String {
         switch self {
-        case .unreachable: String(localized: "The server did not answer. Check your connection and try again.")
+        case .unreachable: String(localized: "Could not reach \(host). Check the address and your connection.")
         case .notFound: String(localized: "This server no longer offers this timeline.")
         case .rateLimited(let seconds?):
             String(localized: "The server asked to wait \(seconds) seconds before trying again.")

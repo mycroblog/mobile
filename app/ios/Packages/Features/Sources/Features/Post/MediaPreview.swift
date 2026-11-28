@@ -26,9 +26,9 @@ struct MediaGrid: View {
                                 // The size follows the width and the medium's shape, never the text size.
                                 Color.clear
                                     .aspectRatio(aspectRatio(of: attachment), contentMode: .fit)
-                                    .frame(maxWidth: .infinity, maxHeight: maxTileHeight)
                                     .overlay { MediaTile(attachment: attachment, isHidden: isHidden) }
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .frame(maxWidth: .infinity, maxHeight: maxTileHeight, alignment: .leading)
                             }
                         }
                     }
@@ -41,6 +41,8 @@ struct MediaGrid: View {
                     }
                     .buttonStyle(.bordered)
                     .background(.regularMaterial, in: Capsule())
+                    // The post has Show Media as an action of its own.
+                    .accessibilityHidden(true)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if canHide {
                     Button(action: toggle) {
@@ -54,6 +56,7 @@ struct MediaGrid: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
                     .padding(2)
+                    .accessibilityHidden(true)
                 }
             }
             if omittedCount > 0 {

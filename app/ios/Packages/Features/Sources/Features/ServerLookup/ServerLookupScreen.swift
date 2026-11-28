@@ -150,7 +150,7 @@ extension InstanceLookupError {
     /// Why the lookup failed, in plain words.
     fileprivate var reason: String {
         switch self {
-        case .unreachable: String(localized: "The server did not answer.")
+        case .unreachable: String(localized: "Check the address and your connection.")
         case .notMycroblog: String(localized: "This is not a mycroblog server.")
         case .problem(let title, _): title
         }

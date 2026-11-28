@@ -64,6 +64,9 @@ struct PostView: View {
         }
         .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
+        // A post is one element whatever it holds: not a button, not an image, not plain text. Its buttons are its
+        // actions.
+        .accessibilityRemoveTraits([.isButton, .isImage, .isStaticText, .isLink])
         .accessibilityActions {
             if post.contentWarning != nil {
                 Button(isContentOpen ? LocalizedStringKey("Hide Content") : "Show Content", action: toggleContent)
@@ -223,7 +226,7 @@ private struct Avatar: View {
 }
 
 /// The counts of replies, boosts and favourites, which a reader who has not signed in can only read. VoiceOver reads
-/// each count that is not zero with its name, such as "1 boost, 1 favourite".
+/// each count with its name.
 private struct PostCountsView: View {
     let counts: PostCounts
 
@@ -243,21 +246,15 @@ private struct PostCountsView: View {
         .foregroundStyle(.secondary)
         .padding(.top, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(spokenCounts ?? Text(verbatim: ""))
-        .accessibilityHidden(spokenCounts == nil)
+        .accessibilityLabel(spokenCounts)
     }
 
-    /// The counts that are not zero, with their names, or nil when all are zero.
-    private var spokenCounts: Text? {
-        var parts: [Text] = []
-        if counts.replies > 0 { parts.append(Text("^[\(counts.replies) reply](inflect: true)")) }
-        if counts.boosts > 0 { parts.append(Text("^[\(counts.boosts) boost](inflect: true)")) }
-        if counts.favourites > 0 { parts.append(Text("^[\(counts.favourites) favourite](inflect: true)")) }
-        guard var spoken = parts.first else { return nil }
-        for part in parts.dropFirst() {
-            spoken = Text("\(spoken), \(part)")
-        }
-        return spoken
+    /// The three counts with their names, zeros included, such as "0 replies, 1 boost, 1 favourite".
+    private var spokenCounts: Text {
+        let replies = Text("^[\(counts.replies) reply](inflect: true)")
+        let boosts = Text("^[\(counts.boosts) boost](inflect: true)")
+        let favourites = Text("^[\(counts.favourites) favourite](inflect: true)")
+        return Text("\(replies), \(boosts), \(favourites)")
     }
 
     private func count(_ value: Int, systemImage: String) -> some View {

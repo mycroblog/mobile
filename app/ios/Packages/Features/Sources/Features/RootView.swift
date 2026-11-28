@@ -18,8 +18,6 @@ public struct RootView: View {
     @State private var serverLookup: ServerLookupModel?
     @SceneStorage("RootView.isLookingUpAServer") private var isLookingUpAServer = false
     @SceneStorage("RootView.serverAddress") private var serverAddress = ""
-    /// The page of a tapped link, open in the in-app browser.
-    @State private var browsed: BrowsedURL?
     /// When the set of tabs last changed: at the scene's start and when the width changes. Rebuilding the tabs makes the
     /// tab container select its first tab, which is not the reader's choice.
     @State private var tabsChangedAt = Date.now
@@ -52,7 +50,8 @@ public struct RootView: View {
             ForEach(tabDestinations, id: \.self) { destination in
                 Tab(value: RootSelection.destination(destination)) {
                     NavigationStack {
-                        DestinationScreen(destination: destination, session: session, chooseServer: lookUpAServer)
+                        DestinationScreen(
+                            destination: destination, session: session, chooseServer: lookUpAServer, open: show)
                     }
                 } label: {
                     TabLabel(title: destination.title, systemImage: destination.systemImage)
@@ -64,7 +63,8 @@ public struct RootView: View {
                         OverflowList()
                             .navigationDestination(for: TopLevelDestination.self) { destination in
                                 DestinationScreen(
-                                    destination: destination, session: session, chooseServer: lookUpAServer)
+                                    destination: destination, session: session, chooseServer: lookUpAServer,
+                                    open: show)
                             }
                     }
                 } label: {
@@ -74,7 +74,7 @@ public struct RootView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .sidebarOnTheInnerDisplay()
-        .opensLinksInAppBrowser($browsed)
+        .opensLinksInAppBrowser()
         .sheet(item: $serverLookup) { model in
             NavigationStack {
                 ServerLookupScreen(model: model) { address, instance in
@@ -92,6 +92,11 @@ public struct RootView: View {
         }
         .onAppear(perform: restoreServerLookup)
         .onChange(of: tabDestinations) { tabsChangedAt = .now }
+    }
+
+    /// Shows the top-level destination `destination`.
+    private func show(_ destination: TopLevelDestination) {
+        navigation.select(tab: .destination(destination))
     }
 
     private func lookUpAServer() {
@@ -168,11 +173,17 @@ private struct DestinationScreen: View {
     let destination: TopLevelDestination
     let session: ReaderSession
     let chooseServer: () -> Void
+    let open: (TopLevelDestination) -> Void
 
     var body: some View {
         switch destination {
         case .home:
-            HomeScreen(server: session.server, chooseServer: chooseServer)
+            HomeScreen(
+                server: session.server,
+                firstTimeline: session.publicTimelines.first,
+                chooseServer: chooseServer,
+                open: open
+            )
         case .localTimeline, .federatedTimeline:
             if let timeline = destination.publicTimeline, let model = session.model(of: timeline) {
                 TimelineScreen(model: model, title: destination.title)
@@ -191,7 +202,10 @@ private struct DestinationScreen: View {
 /// Home. Before a server is chosen, it offers to choose one; its timeline needs signing in.
 private struct HomeScreen: View {
     let server: ChosenServer?
+    /// The first public timeline the server offers, which Home offers to open until the reader can sign in.
+    let firstTimeline: PublicTimeline?
     let chooseServer: () -> Void
+    let open: (TopLevelDestination) -> Void
 
     var body: some View {
         if server == nil {
@@ -210,7 +224,26 @@ private struct HomeScreen: View {
             }
             .navigationTitle(TopLevelDestination.home.title)
         } else {
-            DestinationPlaceholder(destination: .home)
+            ContentUnavailableView {
+                Label {
+                    Text(TopLevelDestination.home.title)
+                } icon: {
+                    Image(systemName: TopLevelDestination.home.systemImage)
+                        .accessibilityHidden(true)
+                }
+            } description: {
+                Text("Once you sign in, Home shows the posts of the accounts you follow. Signing in comes later.")
+            } actions: {
+                if let destination = firstTimeline.map(TopLevelDestination.init(publicTimeline:)) {
+                    Button {
+                        open(destination)
+                    } label: {
+                        Text("Open \(Text(destination.title))")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .navigationTitle(TopLevelDestination.home.title)
         }
     }
 }
