@@ -1,0 +1,333 @@
+{
+  "rule": "How a client turns the sanitized HTML of a status's content (or the plain text of a content warning or a display name) and its custom emoji into blocks of runs. Blocks: p -> paragraph, blockquote -> quote, pre -> code, each li of ul or ol -> list_item; text outside any block is a paragraph. Inside a block, whitespace collapses to one space and is trimmed at both ends, except in code; br is a newline and the whitespace around it is dropped. A run has text, optional styles (strong for b and strong, emphasis for i and em, strikethrough for del and s, underline for u, code for code; in this order), and an optional link: mention for an a with class mention without hashtag, hashtag for an a with class hashtag, url for any other a. A span with class invisible is dropped; a span with class ellipsis keeps its text and adds an ellipsis after it. ruby keeps its base text and rp and rt text in order. Any other element keeps its text, and any other block element (div, for one) is a paragraph. A :shortcode: of the emoji list becomes an emoji run (same link as its surroundings), any other :word: stays text. Adjacent runs with the same styles and link merge. A paragraph with no runs is dropped.",
+  "cases": [
+    {
+      "name": "plain paragraphs and a line break",
+      "format": "html",
+      "input": "<p>Hello  world</p><p>line one<br>line two</p>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "Hello world"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "line one\nline two"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mention, hashtag and a shortened link",
+      "format": "html",
+      "input": "<p><span class=\"h-card\"><a href=\"https://remote.example/@Carol\" class=\"u-url mention\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">@<span>Carol</span></a></span> see <a href=\"https://my.example/tags/go\" class=\"mention hashtag\" rel=\"tag\">#<span>go</span></a> and <a href=\"https://example.com/a/very/long/path/that/is/shortened\" rel=\"nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">example.com/a/very/long/pat</span><span class=\"invisible\">h/that/is/shortened</span></a></p>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "@Carol",
+              "link": {
+                "type": "mention",
+                "href": "https://remote.example/@Carol"
+              }
+            },
+            {
+              "text": " see "
+            },
+            {
+              "text": "#go",
+              "link": {
+                "type": "hashtag",
+                "href": "https://my.example/tags/go"
+              }
+            },
+            {
+              "text": " and "
+            },
+            {
+              "text": "example.com/a/very/long/pat…",
+              "link": {
+                "type": "url",
+                "href": "https://example.com/a/very/long/path/that/is/shortened"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom emoji, known and unknown",
+      "format": "html",
+      "input": "<p>hi :blobcat: and :nothere: <a href=\"https://example.com/\">go :blobcat:</a></p>",
+      "emojis": [
+        {
+          "shortcode": "blobcat",
+          "url": "https://my.example/emoji/blobcat.gif",
+          "static_url": "https://my.example/emoji/blobcat.png"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "hi "
+            },
+            {
+              "emoji": "blobcat"
+            },
+            {
+              "text": " and :nothere: "
+            },
+            {
+              "text": "go ",
+              "link": {
+                "type": "url",
+                "href": "https://example.com/"
+              }
+            },
+            {
+              "emoji": "blobcat",
+              "link": {
+                "type": "url",
+                "href": "https://example.com/"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "two emoji with no space between",
+      "format": "html",
+      "input": "<p>:a::b:</p>",
+      "emojis": [
+        {
+          "shortcode": "a",
+          "url": "https://my.example/emoji/a.png",
+          "static_url": "https://my.example/emoji/a.png"
+        },
+        {
+          "shortcode": "b",
+          "url": "https://my.example/emoji/b.png",
+          "static_url": "https://my.example/emoji/b.png"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "emoji": "a"
+            },
+            {
+              "emoji": "b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inline styles",
+      "format": "html",
+      "input": "<p>a<b>b</b><strong>c</strong><i>d</i><em>e</em><del>f</del><s>g</s><u>h</u><code>i</code><b><i>j</i></b></p>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "a"
+            },
+            {
+              "text": "bc",
+              "styles": [
+                "strong"
+              ]
+            },
+            {
+              "text": "de",
+              "styles": [
+                "emphasis"
+              ]
+            },
+            {
+              "text": "fg",
+              "styles": [
+                "strikethrough"
+              ]
+            },
+            {
+              "text": "h",
+              "styles": [
+                "underline"
+              ]
+            },
+            {
+              "text": "i",
+              "styles": [
+                "code"
+              ]
+            },
+            {
+              "text": "j",
+              "styles": [
+                "strong",
+                "emphasis"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "quote, code block and list",
+      "format": "html",
+      "input": "<p>before</p><blockquote><p>quoted</p></blockquote><pre>let  x = 1\n  y</pre><ul><li>one</li><li>two</li></ul>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "before"
+            }
+          ]
+        },
+        {
+          "type": "quote",
+          "runs": [
+            {
+              "text": "quoted"
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "runs": [
+            {
+              "text": "let  x = 1\n  y"
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "runs": [
+            {
+              "text": "one"
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "runs": [
+            {
+              "text": "two"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ruby",
+      "format": "html",
+      "input": "<p><ruby>漢<rp>(</rp><rt>kan</rt><rp>)</rp></ruby>字</p>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "漢(kan)字"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "entities and text outside a block",
+      "format": "html",
+      "input": "Tom &amp; Jerry &lt;3",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "Tom & Jerry <3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "empty content",
+      "format": "html",
+      "input": "",
+      "emojis": [],
+      "blocks": []
+    },
+    {
+      "name": "unknown elements keep their text",
+      "format": "html",
+      "input": "<p>a<foo>bar</foo> <img alt=\"x\"></p><div>loose</div>",
+      "emojis": [],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "abar"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "loose"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "plain text keeps markup characters as text",
+      "format": "text",
+      "input": "<b>Alice</b> :blobcat: & co",
+      "emojis": [
+        {
+          "shortcode": "blobcat",
+          "url": "https://my.example/emoji/blobcat.gif",
+          "static_url": "https://my.example/emoji/blobcat.png"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "paragraph",
+          "runs": [
+            {
+              "text": "<b>Alice</b> "
+            },
+            {
+              "emoji": "blobcat"
+            },
+            {
+              "text": " & co"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
