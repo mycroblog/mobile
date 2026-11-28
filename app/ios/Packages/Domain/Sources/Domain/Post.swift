@@ -115,6 +115,8 @@ public struct Post: Sendable, Hashable, Codable, Identifiable {
     /// How many media the server left out of `media`.
     public var omittedMediaCount: Int
     public var counts: PostCounts
+    /// The parts of the post this app does not show yet, such as a poll or an article; nil or empty when none.
+    public var unshownParts: [UnshownPart]?
 
     public init(
         id: String,
@@ -128,7 +130,8 @@ public struct Post: Sendable, Hashable, Codable, Identifiable {
         isSensitive: Bool = false,
         media: [MediaAttachment] = [],
         omittedMediaCount: Int = 0,
-        counts: PostCounts = PostCounts(replies: 0, boosts: 0, favourites: 0)
+        counts: PostCounts = PostCounts(replies: 0, boosts: 0, favourites: 0),
+        unshownParts: [UnshownPart]? = nil
     ) {
         self.id = id
         self.accountID = accountID
@@ -142,10 +145,22 @@ public struct Post: Sendable, Hashable, Codable, Identifiable {
         self.media = media
         self.omittedMediaCount = omittedMediaCount
         self.counts = counts
+        self.unshownParts = unshownParts
     }
 
     /// Whether the post was edited.
     public var isEdited: Bool { editedAt != nil }
+
+    /// Whether the post has parts this app does not show yet; the reader can open it on the web instead.
+    public var hasUnshownParts: Bool { unshownParts?.isEmpty == false }
+}
+
+/// A part of a post that this app does not show yet.
+public enum UnshownPart: String, Sendable, Hashable, Codable {
+    case poll
+    case quote
+    case article
+    case eventBoard = "event_board"
 }
 
 /// What a timeline shows for one of its entries: a post with its author, or, for a boost, the boosted post with its

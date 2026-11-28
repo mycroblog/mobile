@@ -56,6 +56,12 @@ public struct ServerLookupScreen: View {
                 Button("Cancel", role: .cancel) { dismiss() }
             }
         }
+        .task {
+            // The field takes the keyboard when the screen opens with nothing looked up yet, once the sheet is up.
+            guard model.state == .idle else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            isAddressFocused = true
+        }
         .onChange(of: model.state) { _, state in
             if state == .invalidAddress {
                 AccessibilityNotification.Announcement(String(localized: Self.invalidAddressMessage)).post()

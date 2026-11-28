@@ -20,7 +20,8 @@ struct RunsText: View {
         let text = Self.text(of: runs, emoji: emojiText)
         // VoiceOver skips the label of an image inside Text; with emoji, the text reads as its plain form, each emoji
         // as `:shortcode:`.
-        if runs.contains(where: { $0.emoji != nil }) {
+        // A label would also hide the text's links from it, so a text with links keeps them instead.
+        if runs.contains(where: { $0.emoji != nil }), !runs.contains(where: { $0.link != nil }) {
             text.accessibilityLabel(Text(verbatim: runs.plainText))
         } else {
             text

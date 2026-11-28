@@ -10,7 +10,8 @@ struct PostView: View {
     /// Whether the reader showed the hidden media.
     let isMediaShown: Bool
     let toggleContent: () -> Void
-    let showMedia: () -> Void
+    /// Shows the hidden media, or hides them again.
+    let toggleMedia: () -> Void
 
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -49,8 +50,12 @@ struct PostView: View {
                                 media: post.media,
                                 omittedCount: post.omittedMediaCount,
                                 isHidden: isMediaHidden,
-                                show: showMedia
+                                canHide: item.isMediaHidden && isMediaShown,
+                                toggle: toggleMedia
                             )
+                        }
+                        if post.hasUnshownParts, let url = post.url {
+                            UnshownPartsLine(url: url)
                         }
                     }
                     PostCountsView(counts: post.counts)
@@ -63,8 +68,11 @@ struct PostView: View {
             if post.contentWarning != nil {
                 Button(isContentOpen ? LocalizedStringKey("Hide Content") : "Show Content", action: toggleContent)
             }
-            if !isContentHidden, isMediaHidden, !post.media.isEmpty {
-                Button("Show Media", action: showMedia)
+            if !isContentHidden, item.isMediaHidden, !post.media.isEmpty {
+                Button(isMediaHidden ? LocalizedStringKey("Show Media") : "Hide Media", action: toggleMedia)
+            }
+            if !isContentHidden, post.hasUnshownParts, let url = post.url {
+                Button("Open on the Web") { openURL(url) }
             }
             ForEach(Array(links.enumerated()), id: \.offset) { _, link in
                 Button {
@@ -134,7 +142,7 @@ struct PostView: View {
                     .fontWeight(.semibold)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
-                    .accessibilityHidden(true)
+                    .accessibilityLabel(Text("Content warning"))
             }
             Button(isContentOpen ? LocalizedStringKey("Hide Content") : "Show Content", action: toggleContent)
                 .buttonStyle(.bordered)
@@ -212,7 +220,8 @@ private struct Avatar: View {
     }
 }
 
-/// The counts of replies, boosts and favourites, which a reader who has not signed in can only read.
+/// The counts of replies, boosts and favourites, which a reader who has not signed in can only read. VoiceOver reads
+/// each count that is not zero with its name, such as "1 boost, 1 favourite".
 private struct PostCountsView: View {
     let counts: PostCounts
 
@@ -224,16 +233,32 @@ private struct PostCountsView: View {
             dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 20))
         layout {
-            count(counts.replies, systemImage: "arrowshape.turn.up.left", label: "Replies")
-            count(counts.boosts, systemImage: "arrow.2.squarepath", label: "Boosts")
-            count(counts.favourites, systemImage: "star", label: "Favourites")
+            count(counts.replies, systemImage: "arrowshape.turn.up.left")
+            count(counts.boosts, systemImage: "arrow.2.squarepath")
+            count(counts.favourites, systemImage: "star")
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
         .padding(.top, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenCounts ?? Text(verbatim: ""))
+        .accessibilityHidden(spokenCounts == nil)
     }
 
-    private func count(_ value: Int, systemImage: String, label: LocalizedStringKey) -> some View {
+    /// The counts that are not zero, with their names, or nil when all are zero.
+    private var spokenCounts: Text? {
+        var parts: [Text] = []
+        if counts.replies > 0 { parts.append(Text("^[\(counts.replies) reply](inflect: true)")) }
+        if counts.boosts > 0 { parts.append(Text("^[\(counts.boosts) boost](inflect: true)")) }
+        if counts.favourites > 0 { parts.append(Text("^[\(counts.favourites) favourite](inflect: true)")) }
+        guard var spoken = parts.first else { return nil }
+        for part in parts.dropFirst() {
+            spoken = Text("\(spoken), \(part)")
+        }
+        return spoken
+    }
+
+    private func count(_ value: Int, systemImage: String) -> some View {
         Label {
             Text(value, format: .number)
         } icon: {
@@ -241,8 +266,24 @@ private struct PostCountsView: View {
         }
         .labelStyle(.titleAndIcon)
         .fixedSize()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(label))
-        .accessibilityValue(Text(value, format: .number))
+    }
+}
+
+/// A line that says the post has parts this app does not show yet, and opens the post on the web in the in-app
+/// browser.
+private struct UnshownPartsLine: View {
+    let url: URL
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("This post has content the app cannot show yet.", systemImage: "info.circle")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button("Open on the Web") { openURL(url) }
+                .font(.subheadline)
+                .accessibilityHidden(true)
+        }
     }
 }

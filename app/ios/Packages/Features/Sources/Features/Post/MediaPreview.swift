@@ -8,33 +8,46 @@ struct MediaGrid: View {
     let media: [MediaAttachment]
     let omittedCount: Int
     let isHidden: Bool
-    let show: () -> Void
-
-    @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 160
+    /// Whether the media were hidden and the reader showed them, so that they can be hidden again.
+    let canHide: Bool
+    let toggle: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 Grid(horizontalSpacing: 4, verticalSpacing: 4) {
                     ForEach(rows.indices, id: \.self) { row in
                         GridRow {
                             ForEach(rows[row]) { attachment in
-                                MediaTile(attachment: attachment, isHidden: isHidden)
+                                // The size follows the width and the medium's shape, never the text size.
+                                Color.clear
+                                    .aspectRatio(aspectRatio(of: attachment), contentMode: .fit)
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: media.count == 1 ? tileHeight * 1.4 : tileHeight)
+                                    .overlay { MediaTile(attachment: attachment, isHidden: isHidden) }
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }
                     }
                 }
                 if isHidden {
-                    Button(action: show) {
+                    Button(action: toggle) {
                         Label("Show Media", systemImage: "eye")
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }
                     .buttonStyle(.bordered)
                     .background(.regularMaterial, in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if canHide {
+                    Button(action: toggle) {
+                        Label("Hide Media", systemImage: "eye.slash")
+                            .labelStyle(.iconOnly)
+                            .padding(8)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.primary)
+                    .background(.regularMaterial, in: Circle())
+                    .padding(6)
                 }
             }
             if omittedCount > 0 {
@@ -43,6 +56,12 @@ struct MediaGrid: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// One medium alone keeps its shape, between a tall 3:4 and a wide 2:1; several are square tiles.
+    private func aspectRatio(of attachment: MediaAttachment) -> CGFloat {
+        guard media.count == 1 else { return 1 }
+        return CGFloat(min(2, max(0.75, attachment.aspectRatio ?? 16.0 / 9.0)))
     }
 
     /// The media two to a row.

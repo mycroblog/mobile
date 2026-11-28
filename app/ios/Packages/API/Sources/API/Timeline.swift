@@ -119,8 +119,18 @@ extension Post {
                 replies: status.repliesCount,
                 boosts: status.boostsCount,
                 favourites: status.favouritesCount
-            )
+            ),
+            unshownParts: Self.unshownParts(of: status)
         )
+    }
+
+    private static func unshownParts(of status: Components.Schemas.Status) -> [UnshownPart]? {
+        var parts: [UnshownPart] = []
+        if status.poll != nil { parts.append(.poll) }
+        if status.quote != nil { parts.append(.quote) }
+        if status.article != nil { parts.append(.article) }
+        if status.eventBoard != nil { parts.append(.eventBoard) }
+        return parts.isEmpty ? nil : parts
     }
 }
 

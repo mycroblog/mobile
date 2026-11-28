@@ -16,6 +16,9 @@ struct TimelineScreen: View {
     var body: some View {
         content
             .navigationTitle(title)
+            // An inline title keeps the top of the list in one place, so that the reading position and the scroll
+            // to the top that a tap on the tab asks for both land below the bar.
+            .navigationBarTitleDisplayMode(.inline)
             .task { await model.run() }
     }
 
@@ -62,7 +65,7 @@ struct TimelineScreen: View {
                         isContentOpen: model.openedContentWarnings.contains(item.id),
                         isMediaShown: model.shownMedia.contains(item.id),
                         toggleContent: { toggleContent(of: item.id) },
-                        showMedia: { model.shownMedia.insert(item.id) }
+                        toggleMedia: { toggleMedia(of: item.id) }
                     )
                     .padding(.horizontal)
                     .onGeometryChange(for: CGFloat.self) { proxy in
@@ -117,6 +120,14 @@ struct TimelineScreen: View {
         }
     }
 
+    private func toggleMedia(of id: String) {
+        if model.shownMedia.contains(id) {
+            model.shownMedia.remove(id)
+        } else {
+            model.shownMedia.insert(id)
+        }
+    }
+
     private func retry() {
         Task { await model.retry() }
     }
@@ -128,10 +139,15 @@ struct TimelineScreen: View {
         didRestore = true
         guard let saved = model.savedPosition, model.items.contains(where: { $0.id == saved.anchorID }) else { return }
         position.scrollTo(id: saved.anchorID, anchor: .top)
-        guard saved.offset > 0 else { return }
         Task {
-            try? await Task.sleep(for: .milliseconds(100))
-            position.scrollTo(y: geometry.contentOffset + saved.offset)
+            // Once the rows are laid out, measure where the anchor landed and move by what is left, so that its top is
+            // the saved offset above the top of what the reader sees.
+            try? await Task.sleep(for: .milliseconds(150))
+            guard let top = geometry.rowTops[saved.anchorID] else { return }
+            let correction = (top - geometry.insetTop) + saved.offset
+            if abs(correction) >= 1 {
+                position.scrollTo(y: max(0, geometry.contentOffset + correction))
+            }
         }
     }
 
